@@ -21,7 +21,7 @@ export class CascadeBreadcrumbs
 			{
 				const separator = document.createElement("span");
 				separator.classList.add("cascade-breadcrumb-separator");
-				separator.textContent = " → ";
+				separator.textContent = " > ";
 				nav.appendChild(separator);
 			}
 
