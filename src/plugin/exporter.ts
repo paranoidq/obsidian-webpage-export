@@ -6,7 +6,7 @@ import { Website } from "src/plugin/website/website";
 import { ExportLog, MarkdownRendererAPI } from "src/plugin/render-api/render-api";
 import { ExportInfo, ExportModal } from "src/plugin/settings/export-modal";
 import { Webpage } from "./website/webpage";
-import { CascadeExportResolver } from "./cascade-export-resolver";
+import { CascadeExportContext, CascadeExportResolver } from "./cascade-export-resolver";
 
 export class HTMLExporter
 {
@@ -55,24 +55,31 @@ export class HTMLExporter
 		const info = await this.updateSettings(usePreviousSettings, [entryFile], overrideExportPath, true);
 		if ((!info && !usePreviousSettings) || (info && info.canceled)) return;
 
-		const files = CascadeExportResolver.collect(entryFile);
+		const cascadeContext = CascadeExportResolver.collect(entryFile);
 		const exportPath = overrideExportPath ?? info?.exportPath ?? new Path(Settings.exportOptions.exportPath);
 		const exportRoot = new Path(entryFile.path).parent?.path ?? "";
 
-		const website = await HTMLExporter.exportFiles(files, exportPath, true, Settings.deleteOldFiles, exportRoot);
+		const website = await HTMLExporter.exportFiles(
+			cascadeContext.files,
+			exportPath,
+			true,
+			Settings.deleteOldFiles,
+			exportRoot,
+			cascadeContext
+		);
 
 		if (!website) return;
 		if (Settings.openAfterExport) Utils.openPath(exportPath);
 		new Notice("✅ Finished HTML Export:\n\n" + exportPath, 5000);
 	}
 
-	public static async exportFiles(files: TFile[], destination: Path, saveFiles: boolean, deleteOld: boolean, exportRoot?: string) : Promise<Website | undefined>
+	public static async exportFiles(files: TFile[], destination: Path, saveFiles: boolean, deleteOld: boolean, exportRoot?: string, cascadeContext?: CascadeExportContext) : Promise<Website | undefined>
 	{
 		MarkdownRendererAPI.beginBatch();
 		let website = undefined;
 		try
 		{
-			website = await (await new Website(destination).load(files, exportRoot)).build();
+			website = await (await new Website(destination).load(files, exportRoot, cascadeContext)).build();
 
 			if (!website)
 			{

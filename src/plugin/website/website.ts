@@ -15,12 +15,14 @@ import { GraphView } from "src/plugin/features/graph-view";
 import { ThemeToggle } from "src/plugin/features/theme-toggle";
 import { SearchInput } from "src/plugin/features/search-input";
 import { Utils } from "src/plugin/utils/utils";
+import { CascadeExportContext } from "src/plugin/cascade-export-resolver";
 
 
 export class Website
 {
 	public destination: Path;
 	public index: WebsiteIndex;
+	public cascadeContext: CascadeExportContext | undefined;
 	
 	private sourceFiles: TFile[] = [];
 
@@ -115,13 +117,14 @@ export class Website
 		return commonPath.length > 0 ? new Path(commonPath.join("/")).path : '';
 	}
 
-	public async load(files?: TFile[], exportRoot?: string): Promise<this>
+	public async load(files?: TFile[], exportRoot?: string, cascadeContext?: CascadeExportContext): Promise<this>
 	{
 		ExportLog.resetProgress();
 		ExportLog.addToProgressCap((files?.length ?? 0));
 		ExportLog.addToProgressCap((files?.length ?? 0) * 0.1);
 
 		this.sourceFiles = files?.filter((file) => file) ?? [];
+		this.cascadeContext = cascadeContext;
 
 		let rootPath = exportRoot ?? this.findCommonRootPath(this.sourceFiles);
 		this.exportOptions.exportRoot = rootPath;
@@ -228,9 +231,9 @@ export class Website
 	 * @param options The api options to use for the export.
 	 * @returns The website object.
 	 */
-	public async build(files?: TFile[], exportRoot?: string): Promise<Website | undefined>
+	public async build(files?: TFile[], exportRoot?: string, cascadeContext?: CascadeExportContext): Promise<Website | undefined>
 	{
-		if (files) await this.load(files, exportRoot);
+		if (files) await this.load(files, exportRoot, cascadeContext);
 
 		console.log("Creating website with files:\n" + this.sourceFiles.map(f => f.path).join("\n"));
 

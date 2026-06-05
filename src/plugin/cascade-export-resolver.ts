@@ -5,29 +5,93 @@ type MetadataLink = {
 	link?: string;
 };
 
+export interface CascadeExportNode
+{
+	file: TFile;
+	sourcePath: string;
+	parentSourcePath: string | null;
+	depth: number;
+	breadcrumbSourcePaths: string[];
+	childSourcePaths: string[];
+	isEntry: boolean;
+}
+
+export class CascadeExportContext
+{
+	public readonly entryFile: TFile;
+	public readonly entrySourcePath: string;
+	public readonly files: TFile[];
+	public readonly nodes: Map<string, CascadeExportNode>;
+
+	constructor(entryFile: TFile, files: TFile[], nodes: Map<string, CascadeExportNode>)
+	{
+		this.entryFile = entryFile;
+		this.entrySourcePath = entryFile.path;
+		this.files = files;
+		this.nodes = nodes;
+	}
+
+	public getNode(sourcePath: string): CascadeExportNode | undefined
+	{
+		return this.nodes.get(sourcePath);
+	}
+
+	public isEntry(sourcePath: string): boolean
+	{
+		return sourcePath == this.entrySourcePath;
+	}
+}
+
 export class CascadeExportResolver
 {
-	public static collect(entryFile: TFile): TFile[]
+	public static collect(entryFile: TFile): CascadeExportContext
 	{
 		const files: TFile[] = [];
-		const visited = new Set<string>();
+		const nodes = new Map<string, CascadeExportNode>();
 		const pending: TFile[] = [entryFile];
+
+		nodes.set(entryFile.path, {
+			file: entryFile,
+			sourcePath: entryFile.path,
+			parentSourcePath: null,
+			depth: 0,
+			breadcrumbSourcePaths: [entryFile.path],
+			childSourcePaths: [],
+			isEntry: true,
+		});
 
 		while (pending.length > 0)
 		{
 			const file = pending.shift();
-			if (!file || visited.has(file.path)) continue;
+			if (!file) continue;
 
-			visited.add(file.path);
+			const parentNode = nodes.get(file.path);
+			if (!parentNode || files.some((queuedFile) => queuedFile.path == file.path)) continue;
+
 			files.push(file);
 
 			for (const linkedFile of this.getLinkedFiles(file))
 			{
-				if (!visited.has(linkedFile.path)) pending.push(linkedFile);
+				if (!nodes.has(linkedFile.path))
+				{
+					nodes.set(linkedFile.path, {
+						file: linkedFile,
+						sourcePath: linkedFile.path,
+						parentSourcePath: file.path,
+						depth: parentNode.depth + 1,
+						breadcrumbSourcePaths: [...parentNode.breadcrumbSourcePaths, linkedFile.path],
+						childSourcePaths: [],
+						isEntry: false,
+					});
+					pending.push(linkedFile);
+				}
+
+				if (!parentNode.childSourcePaths.includes(linkedFile.path))
+					parentNode.childSourcePaths.push(linkedFile.path);
 			}
 		}
 
-		return files;
+		return new CascadeExportContext(entryFile, files, nodes);
 	}
 
 	private static getLinkedFiles(file: TFile): TFile[]
