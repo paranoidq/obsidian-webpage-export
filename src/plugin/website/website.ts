@@ -174,7 +174,7 @@ export class Website
 				{
 					let webpage = new Webpage(file, file.name, this, this.exportOptions);
 					webpage.showInTree = true;
-					await this.index.addFile(webpage);
+					await this.index.addFile(webpage, this.cascadeContext != undefined);
 				}
 
 				ExportLog.progress(0.1, "Initializing Document", file.path, "var(--color-yellow)");
