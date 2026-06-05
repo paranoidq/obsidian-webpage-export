@@ -46,6 +46,13 @@ export interface FileData
 	data: string | null;
 }
 
+export interface CascadeBreadcrumbItem
+{
+	title: string;
+	path: string;
+	isEntry: boolean;
+}
+
 export interface WebpageData extends FileData
 {
 	headers: {heading: string, level: number, id: string}[];
@@ -62,6 +69,8 @@ export interface WebpageData extends FileData
 	author: string;
 	coverImageURL: string;
 	fullURL: string;
+	cascadeBreadcrumbs?: CascadeBreadcrumbItem[];
+	isCascadeEntry?: boolean;
 }
 
 export class WebsiteOptions

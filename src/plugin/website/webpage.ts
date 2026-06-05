@@ -6,7 +6,7 @@ import { Website } from "./website";
 import { _MarkdownRendererInternal, ExportLog } from "src/plugin/render-api/render-api";
 import { MarkdownRendererAPI } from "src/plugin/render-api/render-api";
 import { ExportPipelineOptions } from "src/plugin/website/pipeline-options.js";
-import { DocumentType } from "src/shared/website-data";
+import { CascadeBreadcrumbItem, DocumentType } from "src/shared/website-data";
 import { Settings } from "src/plugin/settings/settings";
 import { AssetHandler } from "src/plugin/asset-loaders/asset-handler";
 import { Shared } from "src/shared/shared";
@@ -35,6 +35,8 @@ export class WebpageOutputData
 	public srcLinks: string[] = [];
 	public hrefLinks: string[] = [];
 	public linksToOtherFiles: string[] = [];
+	public cascadeBreadcrumbs: CascadeBreadcrumbItem[] | undefined = undefined;
+	public isCascadeEntry: boolean = false;
 }
 
 export class Webpage extends Attachment
@@ -105,10 +107,38 @@ export class Webpage extends Attachment
 		output.srcLinks = this.srcLinks;
 		output.hrefLinks = this.hrefLinks;
 		output.linksToOtherFiles = this.linksToOtherFiles;
+		output.cascadeBreadcrumbs = await this.getCascadeBreadcrumbs();
+		output.isCascadeEntry = this.website.cascadeContext?.isEntry(this.source.path) ?? false;
 
 		this.data = output.html;
 
 		this.outputData = output;
+	}
+
+	private async getCascadeBreadcrumbs(): Promise<CascadeBreadcrumbItem[] | undefined>
+	{
+		const context = this.website.cascadeContext;
+		const node = context?.getNode(this.source.path);
+		if (!context || !node) return undefined;
+
+		const crumbs: CascadeBreadcrumbItem[] = [];
+		for (const sourcePath of node.breadcrumbSourcePaths)
+		{
+			const crumbNode = context.getNode(sourcePath);
+			if (!crumbNode) continue;
+
+			const webpage = this.website.index.getWebpage(sourcePath);
+			const title = webpage?.title || (await _MarkdownRendererInternal.getTitleForFile(crumbNode.file)).title;
+			const path = webpage?.targetPath.path ?? this.website.getTargetPathForFile(crumbNode.file).setExtension("html").path;
+
+			crumbs.push({
+				title,
+				path,
+				isEntry: context.isEntry(sourcePath),
+			});
+		}
+
+		return crumbs;
 	}
 
 	private get searchContent(): string

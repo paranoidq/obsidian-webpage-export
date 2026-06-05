@@ -440,6 +440,8 @@ export class Index
 			webpageInfo.aliases = webpage.outputData.aliases;
 			webpageInfo.inlineTags = webpage.outputData.inlineTags;
 			webpageInfo.frontmatterTags = webpage.outputData.frontmatterTags;
+			webpageInfo.cascadeBreadcrumbs = webpage.outputData.cascadeBreadcrumbs;
+			webpageInfo.isCascadeEntry = webpage.outputData.isCascadeEntry;
 			webpageInfo.headers = await webpage.outputData.renderedHeadings;
 			webpageInfo.links = webpage.outputData.linksToOtherFiles;
 			webpageInfo.author = webpage.outputData.author;

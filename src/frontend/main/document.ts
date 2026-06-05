@@ -10,6 +10,7 @@ import { Notice } from "./notifications";
 import { Tags } from "./tags";
 import { Tree } from "./trees";
 import { Aliases } from "./aliases";
+import { CascadeBreadcrumbs } from "./breadcrumbs";
 
 export class WebpageDocument {
 	public title: string = "";
@@ -195,6 +196,9 @@ export class WebpageDocument {
 
 	public async postLoadInit(): Promise<WebpageDocument> {
 		this.findElements();
+		if (this.isMainDocument || this.isPreview)
+			CascadeBreadcrumbs.render(this.documentEl, this.info?.cascadeBreadcrumbs);
+
 		this.postProcess();
 
 		if (this.isMainDocument || this.isPreview) {
