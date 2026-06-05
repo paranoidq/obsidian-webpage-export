@@ -528,8 +528,15 @@ export class Website
 
 	public async getCombinedHTML(): Promise<string>
 	{
+		let index: Webpage | undefined;
+		if (this.cascadeContext)
+		{
+			index = this.index.getWebpage(this.cascadeContext.entrySourcePath);
+			if (!index?.data) index = undefined;
+		}
+
 		// get index.html
-		let index = this.index.webpages.find((file) => file.filename == "index.html");
+		index ??= this.index.webpages.find((file) => file.filename == "index.html");
 		if (!index?.data && this.index.webpages.length > 0)
 		{
 			ExportLog.warning("No index.html found, using the first webpage");
