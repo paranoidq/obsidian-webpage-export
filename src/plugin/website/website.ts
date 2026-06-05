@@ -161,7 +161,9 @@ export class Website
 				if (!isConvertable || (MarkdownRendererAPI.viewableMediaExtensions.contains(file.extension)))
 				{
 					const data = Buffer.from(await app.vault.readBinary(file));
-					const path = this.getTargetPathForFile(file);
+					const path = new Path(file.path);
+					path.setWorkingDirectory((this.destination ?? Path.vaultPath.joinString("Web Export")).path);
+					path.slugify(this.exportOptions.slugifyPaths);
 					let attachment = new Attachment(data, path, file, this.exportOptions);
 					attachment.showInTree = true;
 					await this.index.addFile(attachment);
