@@ -112,6 +112,31 @@ body.show-inline-title .page-title {
 	color: var(--inline-title-color);
 }
 
+.cascade-breadcrumbs {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	margin-top: var(--size-4-1);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.cascade-breadcrumb-item {
+	display: inline-flex;
+	align-items: center;
+	color: inherit;
+}
+
+.cascade-breadcrumb-item.is-cascade-entry svg {
+	width: 1em;
+	height: 1em;
+}
+
+.cascade-breadcrumb-separator {
+	white-space: pre;
+	color: var(--text-faint);
+}
+
 h1 li {
 	translate: calc(0px - var(--list-indent)) 0;
 }
