@@ -190,7 +190,13 @@ export class Website
 			// create file tree asset
 			if (this.exportOptions.fileNavigationOptions.enabled)
 			{
-				const paths = this.index.attachmentsShownInTree.map((file) => new Path(file.sourcePathRootRelative ?? ""));
+				const paths = this.index.attachmentsShownInTree.map((file) =>
+				{
+					if (this.cascadeContext && file.source instanceof TFile)
+						return file.targetPath.copy;
+
+					return new Path(file.sourcePathRootRelative ?? "");
+				});
 				this.fileTree = new FileTree(paths, false, true);
 				this.fileTree.makeLinksWebStyle = this.exportOptions.slugifyPaths ?? true;
 				this.fileTree.showNestingIndicator = true;
@@ -199,6 +205,12 @@ export class Website
 				this.fileTree.hideFileExtentionTags = ["md"];
 				this.fileTree.title = this.exportOptions.siteName ?? app.vault.getName();
 				this.fileTree.id = "file-explorer";
+				if (this.cascadeContext)
+				{
+					const entry = this.index.attachmentsShownInTree.find((file) => file.sourcePath == this.cascadeContext?.entrySourcePath);
+					this.fileTree.entryPath = entry?.targetPath.path;
+					this.fileTree.collapsedFolderPaths.add("links");
+				}
 				const tempContainer = document.createElement("div");
 				await this.fileTree.generate(tempContainer);
 				const data = tempContainer.innerHTML;
@@ -206,8 +218,11 @@ export class Website
 				// extract file order and apply to attachments
 				this.index.attachmentsShownInTree.forEach((file) => 
 				{
-					if (!file.sourcePathRootRelative) return;
-					const fileTreeItem = this.fileTree?.getItemBySourcePath(file.sourcePathRootRelative);
+					const lookupPath = this.cascadeContext && file.source instanceof TFile
+						? file.targetPath.path
+						: file.sourcePathRootRelative;
+					if (!lookupPath) return;
+					const fileTreeItem = this.fileTree?.getItemBySourcePath(lookupPath);
 					file.treeOrder = fileTreeItem?.treeOrder ?? 0;
 					console.log("File tree order for " + file.sourcePathRootRelative + ": " + file.treeOrder);
 				});
@@ -420,9 +435,27 @@ export class Website
 
 	public getTargetPathForFile(file: TFile, filename?: string): Path
 	{
+		if (this.cascadeContext) return this.getCascadeTargetPathForFile(file, filename);
+
 		const targetPath = new Path(file.path);
 		if (filename) targetPath.fullName = filename;
 		targetPath.setWorkingDirectory((this.destination ?? Path.vaultPath.joinString("Web Export")).path);
+		targetPath.slugify(this.exportOptions.slugifyPaths);
+		return targetPath;
+	}
+
+	public getCascadeTargetPathForFile(file: TFile, filename?: string): Path
+	{
+		const targetPath = new Path(file.path);
+		if (filename) targetPath.fullName = filename;
+		targetPath.setWorkingDirectory((this.destination ?? Path.vaultPath.joinString("Web Export")).path);
+
+		if (this.cascadeContext && !this.cascadeContext.isEntry(file.path))
+		{
+			targetPath.reparse(Path.joinStrings("links", file.path).path);
+			if (filename) targetPath.fullName = filename;
+		}
+
 		targetPath.slugify(this.exportOptions.slugifyPaths);
 		return targetPath;
 	}

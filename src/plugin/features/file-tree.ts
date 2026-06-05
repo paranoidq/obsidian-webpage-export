@@ -20,6 +20,8 @@ export class FileTree extends Tree
 	public files: Path[];
 	public keepOriginalExtensions: boolean;
 	public sort: boolean;
+	public entryPath: string | undefined;
+	public collapsedFolderPaths: Set<string> = new Set();
 
     /** Map from source vault path to FileTreeItem for quick lookup */
     public pathToItem: Map<string, FileTreeItem> = new Map();
@@ -84,6 +86,7 @@ export class FileTree extends Tree
 					child = new FileTreeItem(this, currentParentNode, depth);
 					child.isFolder = isFolder;
 					child.dataRef = section.path; // Store the vault path
+					child.forceCollapsed = this.collapsedFolderPaths.has(section.path);
                     child.title = titleForLookup; // Default title
 
 					if(child.isFolder) 
@@ -126,6 +129,7 @@ export class FileTree extends Tree
 					}
 				}
 				currentParentNode.href = targetPath.path; // This is the output href
+				currentParentNode.isEntry = this.entryPath == file.path;
 			}
 		}
 
@@ -219,6 +223,8 @@ export class FileTreeItem extends TreeItem
 	public children: FileTreeItem[] = [];
 	public parent: FileTreeItem | FileTree; // Specific type for parent
 	public isFolder = false;
+	public isEntry = false;
+	public forceCollapsed = false;
 	public originalExtension: string = "";
     // treeOrder is inherited from TreeItem (plugin/backend version)
 
@@ -280,6 +286,13 @@ export class FileTreeItem extends TreeItem
 			tag.textContent = this.originalExtension;
 		}
 
+		if (this.isEntry)
+		{
+			self.classList.add("is-cascade-entry");
+			const marker = self.createDiv({ cls: "nav-file-entry-marker" });
+			marker.textContent = "★";
+		}
+
 		return self;
 	}
 
@@ -303,6 +316,7 @@ export class FileTreeItem extends TreeItem
 		const item = super.insertItem(container);
 		item.classList.toggle("nav-folder", this.isFolder);
 		item.classList.toggle("nav-file", !this.isFolder);
+		item.classList.toggle("is-collapsed", this.forceCollapsed);
 		return item;
 	}
 

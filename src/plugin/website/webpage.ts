@@ -70,7 +70,7 @@ export class Webpage extends Attachment
 		const targetPath = website.getTargetPathForFile(file, filename);
 		options = Object.assign(Settings.exportOptions, options);
 
-		super("", targetPath, file, options);
+		super("", targetPath, file, options, website.cascadeContext != undefined);
 		this.targetPath.setExtension("html");
 		this.exportOptions = options;
 		this.source = file;

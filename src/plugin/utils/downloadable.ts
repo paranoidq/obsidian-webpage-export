@@ -16,6 +16,7 @@ export class Attachment
 	public exportOptions: ExportPipelineOptions;
 	public showInTree: boolean = false;
 	public treeOrder: number = 0;
+	public preserveExportRoot: boolean = false;
 
 	public get filename() { return this.targetPath.fullName; }
 	public get basename() { return this.targetPath.basename; }
@@ -51,12 +52,13 @@ export class Attachment
 	}
 
 
-	constructor(data: string | Buffer, target: Path, source: TFile | undefined | null, options: ExportPipelineOptions)
+	constructor(data: string | Buffer, target: Path, source: TFile | undefined | null, options: ExportPipelineOptions, preserveExportRoot: boolean = false)
 	{
 		// @ts-ignore
 		if (target.extensionName == "html" && !Object.getPrototypeOf(this).constructor.name.contains("Webpage"))	target.setFileName(target.basename + "-content");
 		if (target.isDirectory) throw new Error("target must be a file: " + target.path);
 		if (target.isAbsolute) throw new Error("(absolute) Target must be a relative path with the working directory set to the root: " + target.path);
+		this.preserveExportRoot = preserveExportRoot;
 		this.exportOptions = options;
 		this.source = source ?? null;
 		this.data = data;
@@ -65,6 +67,8 @@ export class Attachment
 
 	private removeRootFromPath(path: Path, allowSlugify: boolean = true)
 	{
+		if (this.preserveExportRoot) return path;
+
 		// remove the export root from the target path
 		const root = new Path(this.exportOptions.exportRoot ?? "").slugify(allowSlugify && this.exportOptions.slugifyPaths).path + "/";
 		if (path.path.startsWith(root))
