@@ -260,15 +260,16 @@ export class ObsidianWebsite {
 		// Set initial history state
 		if (this.supportsClientSideHistory) {
 			const initialPath = this.document.pathname;
-			const initialURL = LinkHandler.buildInternalURL(
-				initialPath,
-				window.location.search.substring(1),
-				window.location.hash.substring(1)
-			);
+			const initialURL = LinkHandler.getInternalURLFromClientSideHistory()
+				?? LinkHandler.buildInternalURL(
+					initialPath,
+					"",
+					window.location.hash.substring(1)
+				);
 			history.replaceState(
 				{ pathname: initialPath, url: initialURL },
 				this.document.title,
-				initialURL
+				LinkHandler.getClientSideHistoryURL(initialURL)
 			);
 		}
 
@@ -281,10 +282,11 @@ export class ObsidianWebsite {
 			console.log("popstate", e);
 			let url = e.state?.url;
 			if (url == undefined) url = e.state?.pathname;
+			if (url == undefined) url = LinkHandler.getInternalURLFromClientSideHistory();
 			if (url == undefined && ObsidianSite.document) {
 				url = LinkHandler.buildInternalURL(
 					ObsidianSite.document.pathname,
-					window.location.search.substring(1),
+					"",
 					window.location.hash.substring(1)
 				);
 			}
@@ -326,7 +328,7 @@ export class ObsidianWebsite {
 				history.pushState(
 					{ pathname, url: internalURL },
 					this.document.title,
-					internalURL
+					LinkHandler.getClientSideHistoryURL(internalURL)
 				);
 			}
 			return this.document;
@@ -343,7 +345,7 @@ export class ObsidianWebsite {
 				history.pushState(
 					{ pathname, url: internalURL },
 					this.document.title,
-					internalURL
+					LinkHandler.getClientSideHistoryURL(internalURL)
 				);
 			}
 
@@ -386,7 +388,7 @@ export class ObsidianWebsite {
 			history.pushState(
 				{ pathname: this.document.pathname, url: internalURL },
 				this.document.title,
-				internalURL
+				LinkHandler.getClientSideHistoryURL(internalURL)
 			);
 		}
 

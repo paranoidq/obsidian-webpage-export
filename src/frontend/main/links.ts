@@ -101,6 +101,18 @@ export class LinkHandler
 		);
 	}
 
+	public static getClientSideHistoryURL(internalURL: string): string
+	{
+		const params = new URLSearchParams();
+		params.set("page", internalURL || "index.html");
+		return `?${params.toString()}`;
+	}
+
+	public static getInternalURLFromClientSideHistory(): string | undefined
+	{
+		return new URLSearchParams(window.location.search).get("page") ?? undefined;
+	}
+
 	public static isExternalURL(url: string): boolean
 	{
 		return url.startsWith("//") || /^[a-z][a-z0-9+.-]*:/i.test(url);
