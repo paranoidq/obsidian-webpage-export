@@ -28,7 +28,11 @@ export class CascadeBreadcrumbs
 			item.classList.add("cascade-breadcrumb-item");
 			if (breadcrumb.isEntry) item.classList.add("is-cascade-entry");
 			item.textContent = breadcrumb.isEntry ? `★ ${breadcrumb.title}` : breadcrumb.title;
-			if (!isLast) item.setAttribute("href", breadcrumb.path);
+			if (!isLast)
+			{
+				item.classList.add("internal-link");
+				item.setAttribute("href", breadcrumb.path);
+			}
 			nav.appendChild(item);
 		});
 

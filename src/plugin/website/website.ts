@@ -273,7 +273,7 @@ export class Website
 
 		// only render the updated and new files
 		let webpages = this.index.webpages;
-		webpages = webpages.filter((webpage) => 
+		if (!this.cascadeContext) webpages = webpages.filter((webpage) => 
 		{
 			return this.index.updatedFiles.includes(webpage) || this.index.newFiles.includes(webpage)
 		});
@@ -299,7 +299,7 @@ export class Website
 			await Utils.delay(0);
 			const built = await webpage.build();
 			await Utils.delay(0);
-			if (built) await this.index.addFile(webpage);
+			if (built) await this.index.addFile(webpage, this.cascadeContext != undefined);
 			else await this.index.removeFile(webpage);
 			// save the file and then dispose of the webpage
 			if (!this.exportOptions.combineAsSingleFile)

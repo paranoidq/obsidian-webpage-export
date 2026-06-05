@@ -254,7 +254,7 @@ export class Index
 		this.addFile(rssAsset);
 	}
 
-	public async addFile(file: Attachment | Webpage)
+	public async addFile(file: Attachment | Webpage, forceUpdate: boolean = false)
 	{
 		// determine if the file is new, updated, or unchanged
 		let updatedFile = false;
@@ -316,7 +316,7 @@ export class Index
 		}
 
 		// only update the index if the file is new or updated
-		if (newFile || updatedFile)
+		if (newFile || updatedFile || forceUpdate)
 		{
 			if (file instanceof Webpage)
 			{
