@@ -122,9 +122,15 @@ export class Settings
 			}
 		};
 
-		let filteredFiles = files.filter((file) => Settings.filePickerBlacklist.every((pattern) => !file.match(new RegExp(pattern))));
-		filteredFiles = filteredFiles.filter((file) => Settings.filePickerWhitelist.every((pattern) => file.match(new RegExp(pattern))));
+		let filteredFiles = files.filter((file) => Settings.isPathAllowedByFilePicker(file));
 		return filteredFiles;
+	}
+
+	static isPathAllowedByFilePicker(path: string): boolean
+	{
+		const isBlacklisted = Settings.filePickerBlacklist.some((pattern) => path.match(new RegExp(pattern)));
+		const isWhitelisted = Settings.filePickerWhitelist.every((pattern) => path.match(new RegExp(pattern)));
+		return !isBlacklisted && isWhitelisted;
 	}
 
 	static getFilesToExport(): TFile[]

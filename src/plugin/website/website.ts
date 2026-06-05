@@ -115,7 +115,7 @@ export class Website
 		return commonPath.length > 0 ? new Path(commonPath.join("/")).path : '';
 	}
 
-	public async load(files?: TFile[]): Promise<this>
+	public async load(files?: TFile[], exportRoot?: string): Promise<this>
 	{
 		ExportLog.resetProgress();
 		ExportLog.addToProgressCap((files?.length ?? 0));
@@ -123,7 +123,7 @@ export class Website
 
 		this.sourceFiles = files?.filter((file) => file) ?? [];
 
-		let rootPath = this.findCommonRootPath(this.sourceFiles);
+		let rootPath = exportRoot ?? this.findCommonRootPath(this.sourceFiles);
 		this.exportOptions.exportRoot = rootPath;
 		console.log("Root path: " + rootPath);
 
@@ -228,9 +228,9 @@ export class Website
 	 * @param options The api options to use for the export.
 	 * @returns The website object.
 	 */
-	public async build(files?: TFile[]): Promise<Website | undefined>
+	public async build(files?: TFile[], exportRoot?: string): Promise<Website | undefined>
 	{
-		if (files) await this.load(files);
+		if (files) await this.load(files, exportRoot);
 
 		console.log("Creating website with files:\n" + this.sourceFiles.map(f => f.path).join("\n"));
 

@@ -25,6 +25,7 @@ export class ExportModal extends Modal
 	private filePickerModalEl: HTMLElement;
 	private filePicker: FilePickerTree;
 	private pickedFiles: TFile[] | undefined = undefined;
+	private pickedFilesLocked: boolean = false;
 	private validPath: boolean = true;
 	public static title: string = i18n.exportModal.title;
 
@@ -37,6 +38,12 @@ export class ExportModal extends Modal
 	overridePickedFiles(files: TFile[])
 	{
 		this.pickedFiles = files;
+	}
+
+	lockPickedFiles(files: TFile[])
+	{
+		this.pickedFiles = files;
+		this.pickedFilesLocked = true;
 	}
 
 	/**
@@ -52,7 +59,7 @@ export class ExportModal extends Modal
 
 		super.open();
 
-		if(!this.filePickerModalEl)
+		if(!this.pickedFilesLocked && !this.filePickerModalEl)
 		{
 			this.filePickerModalEl = this.containerEl.createDiv({ cls: 'modal' });
 			this.containerEl.insertBefore(this.filePickerModalEl, this.modalEl);
@@ -304,7 +311,7 @@ export class ExportModal extends Modal
 		exportDescription.style.marginBottom = "1em";
 		onChanged(new Path(exportPathInput.textInput.getValue()));
 
-		this.filePickerModalEl.style.height = this.modalEl.clientHeight * 2 + "px";
+		if (this.filePickerModalEl) this.filePickerModalEl.style.height = this.modalEl.clientHeight * 2 + "px";
 
 		new Setting(contentEl)
 		.setDesc(lang.moreOptions)
@@ -317,9 +324,9 @@ export class ExportModal extends Modal
 
 		await Utils.waitUntil(() => this.isClosed, 60 * 60 * 1000, 10);
 		
-		this.pickedFiles = this.filePicker.getSelectedFiles();
-		this.filePickerModalEl.remove();
-		this.exportInfo = { canceled: this.canceled, pickedFiles: this.pickedFiles, exportPath: new Path(Settings.exportOptions.exportPath), validPath: this.validPath};
+		if (!this.pickedFilesLocked) this.pickedFiles = this.filePicker.getSelectedFiles();
+		this.filePickerModalEl?.remove();
+		this.exportInfo = { canceled: this.canceled, pickedFiles: this.pickedFiles ?? [], exportPath: new Path(Settings.exportOptions.exportPath), validPath: this.validPath};
 
 		return this.exportInfo;
 	}

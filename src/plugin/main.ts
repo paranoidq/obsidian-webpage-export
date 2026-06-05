@@ -88,6 +88,25 @@ export default class HTMLExportPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "export-html-current-cascade",
+			name: "Export current file with linked files",
+			callback: () => {
+				const file = this.app.workspace.getActiveFile();
+
+				if (!file) {
+					new Notice("No file is currently open!", 5000);
+					return;
+				}
+
+				ExportModal.title =
+					i18n.exportModal.exportAsTitle.format(
+						file.name
+					);
+				HTMLExporter.exportCascadeFromEntry(file, false);
+			},
+		});
+
+		this.addCommand({
 			id: "export-html-setting",
 			name: "Set html export settings",
 			callback: () => {
@@ -132,6 +151,20 @@ export default class HTMLExportPlugin extends Plugin {
 							}
 						});
 				});
+				if (file instanceof TFile) {
+					menu.addItem((item) => {
+						item.setTitle("Export as HTML with linked files")
+							.setIcon("network")
+							.setSection("export")
+							.onClick(() => {
+								ExportModal.title =
+									i18n.exportModal.exportAsTitle.format(
+										file.name
+									);
+								HTMLExporter.exportCascadeFromEntry(file, false);
+							});
+					});
+				}
 			})
 		);
 	}
