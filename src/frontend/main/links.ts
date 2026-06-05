@@ -44,7 +44,7 @@ export class LinkHandler
 			});
 
 			// if the link doesn't point to a valid document in ObsidianSite set it to unresolved
-			if(target && !target.startsWith("http") && !ObsidianSite.documentExists(target))
+			if(target && !LinkHandler.isExternalURL(target) && !ObsidianSite.documentExists(target))
 			{
 				link.classList.add("is-unresolved");
 			}
@@ -108,8 +108,15 @@ export class LinkHandler
 
 	public static getExportRelativeHref(url: string): string
 	{
-		const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/") + 1);
-		return new URL(url, window.location.origin + basePath).href;
+		if (this.isExternalURL(url)) return url;
+
+		const baseEl = document.querySelector("base");
+		const rootHref = baseEl?.href
+			?? (ObsidianSite.document?.info?.pathToRoot
+				? new URL(ObsidianSite.document.info.pathToRoot, window.location.href).href
+				: new URL("./", window.location.href).href);
+
+		return new URL(url, rootHref).href;
 	}
 
 	public static getFileDataIdFromURL(url: string): string
