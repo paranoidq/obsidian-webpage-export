@@ -50,6 +50,12 @@ export class ObsidianWebsite {
 	public isLoaded: boolean = false;
 	public isHttp: boolean = window.location.protocol != "file:";
 	public metadata: WebsiteData;
+
+	public get supportsClientSideHistory(): boolean
+	{
+		return !this.metadata?.ignoreMetadata && !this.isHttp;
+	}
+
 	public theme: Theme;
 	public fileTree: Tree | undefined = undefined;
 	public outlineTree: Tree | undefined = undefined;
@@ -252,7 +258,7 @@ export class ObsidianWebsite {
 		});
 
 		// Set initial history state
-		if (this.isHttp) {
+		if (this.supportsClientSideHistory) {
 			let initialPath = this.document.pathname;
 			if (initialPath == "index.html") initialPath = "";
 			history.replaceState(
@@ -269,8 +275,7 @@ export class ObsidianWebsite {
 	private initEvents() {
 		window.addEventListener("popstate", async (e) => {
 			console.log("popstate", e);
-			if (!e.state) return;
-			const pathname = e.state.pathname;
+			const pathname = e.state?.pathname ?? LinkHandler.getPathnameFromURL(window.location.pathname + window.location.hash + window.location.search);
 			await ObsidianSite.loadURL(pathname, false);
 		});
 
@@ -348,7 +353,7 @@ export class ObsidianWebsite {
 		this.graphView?.setActiveNodeByPath(page.pathname);
 		this.document = page;
 
-		if (this.document && this.isHttp && pushState) {
+		if (this.document && this.supportsClientSideHistory && pushState) {
 			let currentPath = this.document.pathname;
 			if (currentPath == "index.html") currentPath = "";
 			history.pushState(

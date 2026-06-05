@@ -18,9 +18,12 @@ export class LinkHandler
 
 			link.addEventListener("click", function(event)
 			{
-				event.preventDefault();
-				event.stopPropagation();
-				ObsidianSite.loadURL(target);
+				if (ObsidianSite.supportsClientSideHistory)
+				{
+					event.preventDefault();
+					event.stopPropagation();
+					ObsidianSite.loadURL(target);
+				}
 
 				// Close the sidebar containing this link on phone
 				if (ObsidianSite.deviceSize === "phone")

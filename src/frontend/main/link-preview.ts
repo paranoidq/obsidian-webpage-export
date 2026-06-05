@@ -160,8 +160,11 @@ export class FilePreviewPopover
 			FilePreviewPopover.savePinnedPreviews();
 		});
 
-		this.goToButton.addEventListener("click", () => {
-			ObsidianSite.loadURL(this.target);
+		this.goToButton.addEventListener("click", async () => {
+			if (ObsidianSite.supportsClientSideHistory)
+				await ObsidianSite.loadURL(this.target);
+			else
+				window.location.href = this.target;
 		});
 
 		this.setupDragHandleListeners();

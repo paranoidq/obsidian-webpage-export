@@ -37,9 +37,12 @@ export class Backlink {
 		this.backlinkTitleEl.innerText = this.targetData.title;
 		this.backlinkEl.appendChild(this.backlinkTitleEl);
 
-		this.backlinkEl.addEventListener("click", (e) => {
+		this.backlinkEl.addEventListener("click", async (e) => {
 			e.preventDefault();
-			ObsidianSite.loadURL(this.url);
+			if (ObsidianSite.supportsClientSideHistory)
+				await ObsidianSite.loadURL(this.url);
+			else
+				window.location.href = this.url;
 		});
 	}
 }

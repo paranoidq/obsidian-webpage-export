@@ -633,7 +633,10 @@ export class GraphView extends InsertedFeature<GraphViewOptions>
 		if (nodeIndex < 0 || nodeIndex >= this.nodeCount) return;
 		if (this.graphExpanded) this.toggleExpandedGraph();
 		const url = this.paths[nodeIndex];
-		await ObsidianSite.loadURL(url);
+		if (ObsidianSite.supportsClientSideHistory)
+			await ObsidianSite.loadURL(url);
+		else
+			window.location.href = url;
 	}
 
 	public toggleExpandedGraph()
