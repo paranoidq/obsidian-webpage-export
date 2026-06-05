@@ -103,9 +103,14 @@ export class LinkHandler
 
 	public static getClientSideHistoryURL(internalURL: string): string
 	{
+		const url = new URL(window.location.href);
+		url.search = "";
+		url.hash = "";
+
 		const params = new URLSearchParams();
 		params.set("page", internalURL || "index.html");
-		return `?${params.toString()}`;
+		url.search = params.toString();
+		return url.href;
 	}
 
 	public static getInternalURLFromClientSideHistory(): string | undefined
