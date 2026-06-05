@@ -636,7 +636,7 @@ export class GraphView extends InsertedFeature<GraphViewOptions>
 		if (ObsidianSite.supportsClientSideHistory)
 			await ObsidianSite.loadURL(url);
 		else
-			window.location.href = url;
+			window.location.href = LinkHandler.getExportRelativeHref(url);
 	}
 
 	public toggleExpandedGraph()

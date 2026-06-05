@@ -1,6 +1,7 @@
 import { WebpageData } from "src/shared/website-data";
 import { DynamicInsertedFeature } from "src/shared/dynamic-inserted-feature";
 import { BacklinksOptions } from "src/shared/features/backlinks";
+import { LinkHandler } from "./links";
 
 export class Backlink {
 	public backlinkEl: HTMLAnchorElement;
@@ -42,7 +43,7 @@ export class Backlink {
 			if (ObsidianSite.supportsClientSideHistory)
 				await ObsidianSite.loadURL(this.url);
 			else
-				window.location.href = this.url;
+				window.location.href = LinkHandler.getExportRelativeHref(this.url);
 		});
 	}
 }

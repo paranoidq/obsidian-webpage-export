@@ -259,12 +259,16 @@ export class ObsidianWebsite {
 
 		// Set initial history state
 		if (this.supportsClientSideHistory) {
-			let initialPath = this.document.pathname;
-			if (initialPath == "index.html") initialPath = "";
+			const initialPath = this.document.pathname;
+			const initialURL = LinkHandler.buildInternalURL(
+				initialPath,
+				window.location.search.substring(1),
+				window.location.hash.substring(1)
+			);
 			history.replaceState(
-				{ pathname: initialPath },
+				{ pathname: initialPath, url: initialURL },
 				this.document.title,
-				initialPath
+				initialURL
 			);
 		}
 
@@ -275,8 +279,17 @@ export class ObsidianWebsite {
 	private initEvents() {
 		window.addEventListener("popstate", async (e) => {
 			console.log("popstate", e);
-			const pathname = e.state?.pathname ?? LinkHandler.getPathnameFromURL(window.location.pathname + window.location.hash + window.location.search);
-			await ObsidianSite.loadURL(pathname, false);
+			let url = e.state?.url;
+			if (url == undefined) url = e.state?.pathname;
+			if (url == undefined && ObsidianSite.document) {
+				url = LinkHandler.buildInternalURL(
+					ObsidianSite.document.pathname,
+					window.location.search.substring(1),
+					window.location.hash.substring(1)
+				);
+			}
+			if (url == undefined) return;
+			await ObsidianSite.loadURL(url, false);
 		});
 
 		const localThis = this;
@@ -303,32 +316,48 @@ export class ObsidianWebsite {
 	public async loadURL(url: string, pushState: boolean = true): Promise<ObsidianDocument | undefined> {
 		const header = LinkHandler.getHashFromURL(url);
 		const query = LinkHandler.getQueryFromURL(url);
-		url = LinkHandler.getPathnameFromURL(url);
-		console.log("Loading URL", url, header, query);
+		const pathname = LinkHandler.getPathnameFromURL(url);
+		const internalURL = LinkHandler.buildInternalURL(pathname, query, header);
+		console.log("Loading URL", pathname, header, query);
 
 		if (query && query.startsWith("query=")) {
 			this.search?.searchParseFilters(query.substring(6));
-			return;
+			if (this.supportsClientSideHistory && pushState) {
+				history.pushState(
+					{ pathname, url: internalURL },
+					this.document.title,
+					internalURL
+				);
+			}
+			return this.document;
 		}
 
 		// if this document is already loaded
-		if (this.document.pathname == url) {
+		if (this.document.pathname == pathname) {
 			if (header) this.document.scrollToHeader(header);
 			else {
 				new Notice("This page is already loaded.");
 			}
 
+			if (this.supportsClientSideHistory && pushState && (query || header)) {
+				history.pushState(
+					{ pathname, url: internalURL },
+					this.document.title,
+					internalURL
+				);
+			}
+
 			return this.document;
 		}
 
-		const data = ObsidianSite.getWebpageData(url) as WebpageData;
+		const data = ObsidianSite.getWebpageData(pathname) as WebpageData;
 		if (!data) {
 			new Notice("This page does not exist yet.");
-			console.warn("Page does not exist", url);
+			console.warn("Page does not exist", pathname);
 			return undefined;
 		}
 
-		const page = await new ObsidianDocument(url).load();
+		const page = await new ObsidianDocument(pathname).load();
 
 		if (!page)
 		{
@@ -354,12 +383,10 @@ export class ObsidianWebsite {
 		this.document = page;
 
 		if (this.document && this.supportsClientSideHistory && pushState) {
-			let currentPath = this.document.pathname;
-			if (currentPath == "index.html") currentPath = "";
 			history.pushState(
-				{ pathname: currentPath },
+				{ pathname: this.document.pathname, url: internalURL },
 				this.document.title,
-				currentPath
+				internalURL
 			);
 		}
 

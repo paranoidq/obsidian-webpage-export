@@ -1,4 +1,5 @@
 import { WebpageDocument } from "./document";
+import { LinkHandler } from "./links";
 
 export class FilePreviewPopover 
 {
@@ -164,7 +165,7 @@ export class FilePreviewPopover
 			if (ObsidianSite.supportsClientSideHistory)
 				await ObsidianSite.loadURL(this.target);
 			else
-				window.location.href = this.target;
+				window.location.href = LinkHandler.getExportRelativeHref(this.target);
 		});
 
 		this.setupDragHandleListeners();
