@@ -60,7 +60,7 @@ export class HTMLExporter
 		const exportRoot = new Path(entryFile.path).parent?.path ?? "";
 
 		const website = await HTMLExporter.exportFiles(
-			cascadeContext.files,
+			cascadeContext.pageFiles,
 			exportPath,
 			true,
 			Settings.deleteOldFiles,
@@ -116,6 +116,7 @@ export class HTMLExporter
 				if (Settings.exportOptions.combineAsSingleFile)
 				{
 					await website.saveAsCombinedHTML();
+					await Utils.downloadAttachments(website.getCascadeResourceDownloads());
 				}
 				else
 				{

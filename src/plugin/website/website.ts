@@ -622,6 +622,16 @@ export class Website
 		return `<!DOCTYPE html>\n${html.documentElement.outerHTML}`;
 	}
 
+	public getCascadeResourceDownloads(): Attachment[]
+	{
+		if (!this.cascadeContext) return [];
+
+		return this.index.allFiles.filter((file) =>
+			!(file instanceof Webpage)
+			&& this.cascadeContext?.isResource(file.sourcePath)
+		);
+	}
+
 	public async saveAsCombinedHTML(): Promise<void>
 	{
 		const html = await this.getCombinedHTML();

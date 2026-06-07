@@ -539,7 +539,10 @@ export class Index
 			fileInfo.backlinks = [];
 			fileInfo.type = AssetLoader.extentionToType(attachment.targetPath.extension);
 			fileInfo.data = null;
-			if (this.exportOptions.combineAsSingleFile)
+			const shouldInlineAttachmentData = this.exportOptions.combineAsSingleFile
+				&& !this.website.cascadeContext?.isResource(attachment.sourcePath);
+
+			if (shouldInlineAttachmentData)
 			{
 				if (attachment.data instanceof Buffer) fileInfo.data = attachment.data.toString("base64");
 				else fileInfo.data = attachment.data.toString();
