@@ -1,5 +1,6 @@
 import { TFile } from "obsidian";
 import { Settings } from "src/plugin/settings/settings";
+import { MarkdownRendererAPI } from "src/plugin/render-api/render-api";
 
 type MetadataLink = {
 	link?: string;
@@ -21,14 +22,20 @@ export class CascadeExportContext
 	public readonly entryFile: TFile;
 	public readonly entrySourcePath: string;
 	public readonly files: TFile[];
+	public readonly pageFiles: TFile[];
+	public readonly resourceFiles: TFile[];
 	public readonly nodes: Map<string, CascadeExportNode>;
+	private readonly resourceSourcePaths: Set<string>;
 
-	constructor(entryFile: TFile, files: TFile[], nodes: Map<string, CascadeExportNode>)
+	constructor(entryFile: TFile, pageFiles: TFile[], resourceFiles: TFile[], nodes: Map<string, CascadeExportNode>)
 	{
 		this.entryFile = entryFile;
 		this.entrySourcePath = entryFile.path;
-		this.files = files;
+		this.files = pageFiles;
+		this.pageFiles = pageFiles;
+		this.resourceFiles = resourceFiles;
 		this.nodes = nodes;
+		this.resourceSourcePaths = new Set(resourceFiles.map((file) => file.path));
 	}
 
 	public getNode(sourcePath: string): CascadeExportNode | undefined
@@ -40,13 +47,20 @@ export class CascadeExportContext
 	{
 		return sourcePath == this.entrySourcePath;
 	}
+
+	public isResource(sourcePath: string | undefined): boolean
+	{
+		return !!sourcePath && this.resourceSourcePaths.has(sourcePath);
+	}
 }
 
 export class CascadeExportResolver
 {
 	public static collect(entryFile: TFile): CascadeExportContext
 	{
-		const files: TFile[] = [];
+		const pageFiles: TFile[] = [];
+		const resourceFiles: TFile[] = [];
+		const resourceSourcePaths = new Set<string>();
 		const nodes = new Map<string, CascadeExportNode>();
 		const pending: TFile[] = [entryFile];
 
@@ -66,12 +80,22 @@ export class CascadeExportResolver
 			if (!file) continue;
 
 			const parentNode = nodes.get(file.path);
-			if (!parentNode || files.some((queuedFile) => queuedFile.path == file.path)) continue;
+			if (!parentNode || pageFiles.some((queuedFile) => queuedFile.path == file.path)) continue;
 
-			files.push(file);
+			pageFiles.push(file);
 
 			for (const linkedFile of this.getLinkedFiles(file))
 			{
+				if (!this.isCascadePageFile(linkedFile))
+				{
+					if (!resourceSourcePaths.has(linkedFile.path))
+					{
+						resourceSourcePaths.add(linkedFile.path);
+						resourceFiles.push(linkedFile);
+					}
+					continue;
+				}
+
 				if (!nodes.has(linkedFile.path))
 				{
 					nodes.set(linkedFile.path, {
@@ -91,7 +115,13 @@ export class CascadeExportResolver
 			}
 		}
 
-		return new CascadeExportContext(entryFile, files, nodes);
+		return new CascadeExportContext(entryFile, pageFiles, resourceFiles, nodes);
+	}
+
+	private static isCascadePageFile(file: TFile): boolean
+	{
+		if (!MarkdownRendererAPI.isConvertable(file.extension)) return false;
+		return !MarkdownRendererAPI.viewableMediaExtensions.contains(file.extension);
 	}
 
 	private static getLinkedFiles(file: TFile): TFile[]
