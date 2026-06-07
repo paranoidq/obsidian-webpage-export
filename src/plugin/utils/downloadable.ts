@@ -52,10 +52,17 @@ export class Attachment
 	}
 
 
-	constructor(data: string | Buffer, target: Path, source: TFile | undefined | null, options: ExportPipelineOptions, preserveExportRoot: boolean = false)
+	constructor(
+		data: string | Buffer,
+		target: Path,
+		source: TFile | undefined | null,
+		options: ExportPipelineOptions,
+		preserveExportRoot: boolean = false,
+		preserveHtmlFileName: boolean = false
+	)
 	{
 		// @ts-ignore
-		if (target.extensionName == "html" && !Object.getPrototypeOf(this).constructor.name.contains("Webpage"))	target.setFileName(target.basename + "-content");
+		if (target.extensionName == "html" && !preserveHtmlFileName && !Object.getPrototypeOf(this).constructor.name.contains("Webpage")) target.setFileName(target.basename + "-content");
 		if (target.isDirectory) throw new Error("target must be a file: " + target.path);
 		if (target.isAbsolute) throw new Error("(absolute) Target must be a relative path with the working directory set to the root: " + target.path);
 		this.preserveExportRoot = preserveExportRoot;

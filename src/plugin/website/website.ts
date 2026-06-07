@@ -17,6 +17,7 @@ import { SearchInput } from "src/plugin/features/search-input";
 import { Utils } from "src/plugin/utils/utils";
 import { CascadeExportContext } from "src/plugin/cascade-export-resolver";
 
+const cascadeResourceFolderName = "resources";
 
 export class Website
 {
@@ -37,6 +38,21 @@ export class Website
 		this.exportOptions = Object.assign(Settings.exportOptions, options);
 		if (!destination.isDirectoryFS) throw new Error("Website destination must be a folder: " + destination.path);
 		this.destination = destination;
+	}
+
+	private async loadCascadeResourceFiles(): Promise<void>
+	{
+		if (!this.cascadeContext) return;
+
+		for (const file of this.cascadeContext.resourceFiles)
+		{
+			const target = this.getCascadeTargetPathForFile(file);
+			const attachment = await this.createAttachmentForFile(file, target, true);
+			if (!attachment) continue;
+
+			attachment.showInTree = false;
+			await this.index.addFile(attachment, true);
+		}
 	}
 
 	private async buildTemplate(): Promise<void>
@@ -149,6 +165,8 @@ export class Website
 		{
 			ExportLog.error(error, "Problem creating webpage template");
 		}
+
+		await this.loadCascadeResourceFiles();
 
 		// create webpages
 		for (const file of this.sourceFiles)
@@ -452,7 +470,12 @@ export class Website
 		if (filename) targetPath.fullName = filename;
 		targetPath.setWorkingDirectory((this.destination ?? Path.vaultPath.joinString("Web Export")).path);
 
-		if (this.cascadeContext && !this.cascadeContext.isEntry(file.path))
+		if (this.cascadeContext?.isResource(file.path))
+		{
+			targetPath.reparse(Path.joinStrings(cascadeResourceFolderName, file.path).path);
+			if (filename) targetPath.fullName = filename;
+		}
+		else if (this.cascadeContext && !this.cascadeContext.isEntry(file.path))
 		{
 			targetPath.reparse(Path.joinStrings("links", file.path).path);
 			if (filename) targetPath.fullName = filename;
@@ -462,12 +485,25 @@ export class Website
 		return targetPath;
 	}
 
+	public async createAttachmentForFile(file: TFile, target?: Path, preserveHtmlFileName: boolean = false): Promise<Attachment | undefined>
+	{
+		const data = Buffer.from(await app.vault.readBinary(file));
+		const attachmentTarget = target ?? new Path(file.path, this.destination.path).slugify(this.exportOptions.slugifyPaths);
+		return new Attachment(data, attachmentTarget, file, this.exportOptions, false, preserveHtmlFileName);
+	}
+
 	public async createAttachmentFromSrc(src: string, sourceFile: TFile): Promise<Attachment | undefined>
 	{
 		const attachedFile = this.getFilePathFromSrc(src, sourceFile.path);
 		if (attachedFile.isDirectory) return;
 
 		const file = app.vault.getFileByPath(attachedFile.pathname);
+		if (file && this.cascadeContext?.isResource(file.path))
+		{
+			const target = this.getCascadeTargetPathForFile(file);
+			return await this.createAttachmentForFile(file, target, true);
+		}
+
 		let path = file?.path ?? "";
 		if (!file) path = AssetHandler.mediaPath.joinString(attachedFile.fullName).path;
 		const data: Buffer | undefined = await attachedFile.readAsBuffer();
