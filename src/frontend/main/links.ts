@@ -16,9 +16,13 @@ export class LinkHandler
 				return;
 			}
 
+			const isExternal = LinkHandler.isExternalURL(target);
+			const isDocument = !isExternal && ObsidianSite.documentExists(target);
+			const isKnownFile = !isExternal && ObsidianSite.fileExists(target);
+
 			link.addEventListener("click", function(event)
 			{
-				if (ObsidianSite.supportsClientSideHistory && !LinkHandler.isExternalURL(target))
+				if (ObsidianSite.supportsClientSideHistory && isDocument)
 				{
 					event.preventDefault();
 					event.stopPropagation();
@@ -44,11 +48,11 @@ export class LinkHandler
 			});
 
 			// if the link doesn't point to a valid document in ObsidianSite set it to unresolved
-			if(target && !LinkHandler.isExternalURL(target) && !ObsidianSite.documentExists(target))
+			if(target && !isExternal && !isKnownFile)
 			{
 				link.classList.add("is-unresolved");
 			}
-			else if (link.classList.contains("internal-link"))
+			else if (link.classList.contains("internal-link") && isDocument)
 			{
 				// Only initialize link preview if the feature is enabled
 				if (!ObsidianSite.metadata?.ignoreMetadata && 

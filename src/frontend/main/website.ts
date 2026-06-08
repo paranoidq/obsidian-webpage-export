@@ -446,6 +446,15 @@ export class ObsidianWebsite {
 		}
 	}
 
+	public fileExists(url: string): boolean {
+		url = LinkHandler.getPathnameFromURL(url);
+		if (this.isHttp) {
+			return !!this.metadata.fileInfo[url];
+		} else {
+			return !!this.getFileData(url)?.exportPath;
+		}
+	}
+
 	private async loadWebsiteData(): Promise<WebsiteData | undefined> {
 		if (this.isHttp) {
 			try {
