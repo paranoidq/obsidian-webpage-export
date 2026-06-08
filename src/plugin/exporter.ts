@@ -116,7 +116,8 @@ export class HTMLExporter
 				if (Settings.exportOptions.combineAsSingleFile)
 				{
 					await website.saveAsCombinedHTML();
-					await Utils.downloadAttachments(website.getCascadeResourceDownloads());
+					const resources = website.getCascadeResourceDownloads();
+					if (resources.length) await Utils.downloadAttachments(resources);
 				}
 				else
 				{
