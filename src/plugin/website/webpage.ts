@@ -698,7 +698,7 @@ export class Webpage extends Attachment
 		let hash = (linkEl?.getAttribute("data-href") ?? link).split("#")[1] ?? "";
 		if (hash != "") hash = "#" + hash;
 
-		if (attachment.targetPath.extensionName == "html")
+		if (attachment instanceof Webpage && attachment.targetPath.extensionName == "html")
 		{
 			const headerText = hash.replaceAll(" ", "_").replaceAll(":", "").replaceAll("__", "_").substring(1);
 			// Only apply numbering if this header is in the headerMap

@@ -46,12 +46,19 @@ export class Website
 
 		for (const file of this.cascadeContext.resourceFiles)
 		{
-			const target = this.getCascadeTargetPathForFile(file);
-			const attachment = await this.createAttachmentForFile(file, target, true);
-			if (!attachment) continue;
+			try
+			{
+				const target = this.getCascadeTargetPathForFile(file);
+				const attachment = await this.createAttachmentForFile(file, target, true);
+				if (!attachment) continue;
 
-			attachment.showInTree = false;
-			await this.index.addFile(attachment, true);
+				attachment.showInTree = false;
+				await this.index.addFile(attachment, true);
+			}
+			catch (error)
+			{
+				ExportLog.error(error, "Problem loading cascade resource: " + file.path);
+			}
 		}
 	}
 
