@@ -1,5 +1,3 @@
-import { Notice } from "./notifications";
-
 type ViewableSource =
 	| { type: "img"; element: HTMLImageElement }
 	| { type: "svg"; element: SVGSVGElement };
@@ -10,7 +8,6 @@ export class ImageViewer {
 	private overlay: HTMLElement | null = null;
 	private stage: HTMLElement | null = null;
 	private viewEl: HTMLImageElement | SVGSVGElement | null = null;
-	private source: ViewableSource | null = null;
 	private scale = 1;
 	private panX = 0;
 	private panY = 0;
@@ -36,8 +33,6 @@ export class ImageViewer {
 	private static readonly ZOOM_OUT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/></svg>`;
 
 	private static readonly ZOOM_IN_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>`;
-
-	private static readonly COPY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
 
 	private static readonly FIT_VIEWPORT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>`;
 
@@ -136,7 +131,6 @@ export class ImageViewer {
 				<button type="button" class="image-lightbox-btn image-lightbox-zoom-out" title="Zoom out" aria-label="Zoom out">${ImageViewer.ZOOM_OUT_ICON}</button>
 				<button type="button" class="image-lightbox-btn image-lightbox-zoom-in" title="Zoom in" aria-label="Zoom in">${ImageViewer.ZOOM_IN_ICON}</button>
 				<button type="button" class="image-lightbox-btn image-lightbox-fit-viewport" title="Fit to 90% of window" aria-label="Fit to 90% of window">${ImageViewer.FIT_VIEWPORT_ICON}</button>
-				<button type="button" class="image-lightbox-btn image-lightbox-copy" title="Copy" aria-label="Copy">${ImageViewer.COPY_ICON}</button>
 			</div>
 		`;
 		document.body.appendChild(this.overlay);
@@ -162,12 +156,6 @@ export class ImageViewer {
 			?.addEventListener("click", (event) => {
 				event.stopPropagation();
 				this.fitToViewport();
-			});
-		this.overlay
-			.querySelector(".image-lightbox-copy")
-			?.addEventListener("click", (event) => {
-				event.stopPropagation();
-				void this.copyImage();
 			});
 
 		this.stage?.addEventListener("click", (event) => event.stopPropagation());
@@ -226,7 +214,6 @@ export class ImageViewer {
 		this.scale = 1;
 		this.panX = 0;
 		this.panY = 0;
-		this.source = source;
 		this.stage.replaceChildren();
 
 		if (source.type === "img") {
@@ -293,7 +280,6 @@ export class ImageViewer {
 		}
 
 		this.viewEl = null;
-		this.source = null;
 		this.scale = 1;
 		this.panX = 0;
 		this.panY = 0;
@@ -339,196 +325,5 @@ export class ImageViewer {
 	private applyTransform(): void {
 		if (!this.stage) return;
 		this.stage.style.transform = `translate(calc(-50% + ${this.panX}px), calc(-50% + ${this.panY}px)) scale(${this.scale})`;
-	}
-
-	private async getImageBlob(src: string): Promise<Blob> {
-		if (src.startsWith("data:")) {
-			return this.dataUrlToBlob(src);
-		}
-
-		const response = await fetch(src);
-		if (!response.ok) {
-			throw new Error(`Failed to fetch image: ${response.status}`);
-		}
-		return response.blob();
-	}
-
-	private dataUrlToBlob(dataUrl: string): Blob {
-		const commaIndex = dataUrl.indexOf(",");
-		if (commaIndex === -1) {
-			throw new Error("Invalid data URL");
-		}
-
-		const header = dataUrl.slice(0, commaIndex);
-		const data = dataUrl.slice(commaIndex + 1);
-		const mimeMatch = header.match(/^data:([^;,]+)/);
-		const mime = mimeMatch?.[1] || "application/octet-stream";
-		const isBase64 = header.includes(";base64");
-
-		if (isBase64) {
-			const binary = atob(data);
-			const bytes = new Uint8Array(binary.length);
-			for (let i = 0; i < binary.length; i++) {
-				bytes[i] = binary.charCodeAt(i);
-			}
-			return new Blob([bytes], { type: mime });
-		}
-
-		return new Blob([decodeURIComponent(data)], { type: mime });
-	}
-
-	private resolveImageMime(blob: Blob, src: string): string {
-		const subtypeMatch = src.match(/^data:[^;,]*\/([^;,]+)/i);
-		if (subtypeMatch) {
-			const subtype = subtypeMatch[1].toLowerCase();
-			const subtypeToMime: Record<string, string> = {
-				gif: "image/gif",
-				png: "image/png",
-				jpeg: "image/jpeg",
-				jpg: "image/jpeg",
-				webp: "image/webp",
-				bmp: "image/bmp",
-				svg: "image/svg+xml",
-				ico: "image/x-icon",
-				avif: "image/avif",
-			};
-			if (subtypeToMime[subtype]) {
-				return subtypeToMime[subtype];
-			}
-		}
-
-		if (blob.type.startsWith("image/")) {
-			return blob.type;
-		}
-
-		const extensionMatch = src.match(/\.(gif|png|jpe?g|webp|bmp|svg)(?:[?#]|$)/i);
-		if (extensionMatch) {
-			const ext = extensionMatch[1].toLowerCase();
-			if (ext === "jpg") return "image/jpeg";
-			if (ext === "svg") return "image/svg+xml";
-			return `image/${ext}`;
-		}
-
-		return "image/png";
-	}
-
-	private async svgToPngBlob(svg: SVGSVGElement): Promise<Blob> {
-		const svgString = new XMLSerializer().serializeToString(svg);
-		const svgUrl =
-			"data:image/svg+xml;charset=utf-8," +
-			encodeURIComponent(svgString);
-		const image = new Image();
-		image.decoding = "async";
-
-		await new Promise<void>((resolve, reject) => {
-			image.onload = () => resolve();
-			image.onerror = () => reject(new Error("Failed to render SVG"));
-			image.src = svgUrl;
-		});
-
-		const viewBox = svg.viewBox.baseVal;
-		const width =
-			Number(svg.getAttribute("width")) ||
-			viewBox.width ||
-			image.naturalWidth ||
-			800;
-		const height =
-			Number(svg.getAttribute("height")) ||
-			viewBox.height ||
-			image.naturalHeight ||
-			600;
-
-		const canvas = document.createElement("canvas");
-		canvas.width = width;
-		canvas.height = height;
-		const context = canvas.getContext("2d");
-		if (!context) {
-			throw new Error("Canvas unavailable");
-		}
-		context.drawImage(image, 0, 0, width, height);
-
-		const blob = await new Promise<Blob | null>((resolve) =>
-			canvas.toBlob(resolve, "image/png")
-		);
-		if (!blob) {
-			throw new Error("Failed to encode PNG");
-		}
-		return blob;
-	}
-
-	private async copyImage(): Promise<void> {
-		if (!this.source) return;
-
-		try {
-			if (this.source.type === "svg") {
-				const svgBlob = new Blob(
-					[
-						new XMLSerializer().serializeToString(
-							this.source.element
-						),
-					],
-					{ type: "image/svg+xml" }
-				);
-
-				if (navigator.clipboard?.write) {
-					try {
-						await navigator.clipboard.write([
-							new ClipboardItem({ "image/svg+xml": svgBlob }),
-						]);
-						new Notice("Image copied to clipboard.");
-						return;
-					} catch {
-						const pngBlob = await this.svgToPngBlob(
-							this.source.element
-						);
-						await navigator.clipboard.write([
-							new ClipboardItem({ "image/png": pngBlob }),
-						]);
-						new Notice("Image copied to clipboard.");
-						return;
-					}
-				}
-			}
-
-			const src =
-				this.source.type === "img"
-					? this.source.element.currentSrc || this.source.element.src
-					: "";
-
-			if (!src) {
-				throw new Error("Missing image source");
-			}
-
-			const blob = await this.getImageBlob(src);
-			const mime = this.resolveImageMime(blob, src);
-			const imageBlob =
-				blob.type === mime
-					? blob
-					: new Blob([await blob.arrayBuffer()], { type: mime });
-
-			if (!navigator.clipboard?.write) {
-				throw new Error("Clipboard API unavailable");
-			}
-
-			const clipboardItem = new ClipboardItem({ [mime]: imageBlob });
-			await navigator.clipboard.write([clipboardItem]);
-			new Notice("Image copied to clipboard.");
-		} catch {
-			if (this.source?.type === "img") {
-				const src =
-					this.source.element.currentSrc || this.source.element.src;
-				if (!src.startsWith("data:")) {
-					try {
-						await navigator.clipboard.writeText(src);
-						new Notice("Image URL copied to clipboard.");
-						return;
-					} catch {
-						// fall through
-					}
-				}
-			}
-
-			new Notice("Failed to copy image.");
-		}
 	}
 }
