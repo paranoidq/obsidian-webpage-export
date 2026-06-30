@@ -1009,8 +1009,106 @@ a.backlink:hover {
 	mask-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-symlink"><path d="m10 18 3-3-3-3"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M4 11V4a2 2 0 0 1 2-2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h7"/></svg>');
 }
 
+/*#region Image Lightbox */
 
-/*#endregion*/
+body.image-lightbox-open {
+	overflow: hidden;
+}
+
+.image-viewer-enabled .markdown-preview-sizer img:not(.emoji) {
+	cursor: zoom-in;
+}
+
+.image-lightbox {
+	position: fixed;
+	inset: 0;
+	z-index: 10000;
+	background: rgba(0, 0, 0, 0.6);
+}
+
+.image-lightbox.hide {
+	display: none;
+}
+
+.image-lightbox-canvas {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+}
+
+.image-lightbox-stage {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%) scale(1);
+	transform-origin: center center;
+	transition: transform 0.08s ease-out;
+	line-height: 0;
+}
+
+.image-lightbox-image {
+	display: block;
+	width: auto;
+	height: auto;
+	max-width: 90vw;
+	max-height: 85vh;
+	object-fit: contain;
+	border-radius: var(--radius-l, 8px);
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+	user-select: none;
+	pointer-events: none;
+}
+
+.image-lightbox-toolbar {
+	position: fixed;
+	left: 50%;
+	bottom: 1.5rem;
+	transform: translateX(-50%);
+	z-index: 10001;
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	padding: 0.4rem 0.65rem;
+	border-radius: 999px;
+	background: rgba(30, 30, 30, 0.88);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+	backdrop-filter: blur(10px);
+	color: #ffffff;
+}
+
+.image-lightbox-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	border: none;
+	border-radius: 999px;
+	background: transparent;
+	color: #ffffff;
+	cursor: pointer;
+	padding: 0;
+}
+
+.image-lightbox-btn svg {
+	display: block;
+	width: 1.15rem;
+	height: 1.15rem;
+	stroke: currentColor;
+}
+
+.image-lightbox-btn:hover {
+	background: rgba(255, 255, 255, 0.16);
+}
+
+.image-lightbox-btn:active {
+	background: rgba(255, 255, 255, 0.24);
+}
+
+/*#endregion */
+
+/*#endregion */
 
 /* Plugins: */
 

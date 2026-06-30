@@ -798,9 +798,15 @@ export class Webpage extends Attachment
 			let ext = filePath.extensionName;
 
 			//@ts-ignore
-			const type = app.viewRegistry.typeByExtension[ext] ?? "audio";
+			const registryType = app.viewRegistry.typeByExtension[ext];
+			const imageExtensions = new Set([
+				"png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "svg", "avif", "apng",
+			]);
+			const type = imageExtensions.has(ext)
+				? "image"
+				: (registryType ?? "application");
 
-			if(ext === "svg") ext += "+xml";
+			if (ext === "svg") ext += "+xml";
 			
 			mediaEl.setAttribute("src", `data:${type}/${ext};base64,${base64}`);
 		};

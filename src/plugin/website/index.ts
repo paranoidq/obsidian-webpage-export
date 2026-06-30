@@ -110,6 +110,8 @@ export class Index
 			this.websiteData.themeName = this.website.exportOptions.themeName ?? "Default";
 			this.websiteData.bodyClasses = await WebpageTemplate.getValidBodyClasses() ?? "";
 			this.websiteData.hasFavicon = this.exportOptions.faviconPath != "";
+			this.websiteData.isCascadeExport = this.website.cascadeContext != undefined;
+			this.websiteData.combineAsSingleFile = this.exportOptions.combineAsSingleFile;
 		}
 		catch (e)
 		{

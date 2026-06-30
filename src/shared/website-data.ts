@@ -188,6 +188,8 @@ export class WebsiteData
 	themeName: string = "";
 	bodyClasses: string = "";
 	hasFavicon: boolean = false;
+	isCascadeExport: boolean = false;
+	combineAsSingleFile: boolean = false;
 	featureOptions: WebsiteOptions = new WebsiteOptions();
 
 

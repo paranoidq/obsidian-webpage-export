@@ -11,6 +11,7 @@ import { Tags } from "./tags";
 import { Tree } from "./trees";
 import { Aliases } from "./aliases";
 import { CascadeBreadcrumbs } from "./breadcrumbs";
+import { ImageViewer } from "./image-viewer";
 
 export class WebpageDocument {
 	public title: string = "";
@@ -262,6 +263,10 @@ export class WebpageDocument {
 				"allow-fold-lists",
 				ObsidianSite.metadata.featureOptions.document.allowFoldingLists
 			);
+		}
+
+		if (ImageViewer.isEnabled()) {
+			ImageViewer.attach(this.documentEl);
 		}
 	}
 
