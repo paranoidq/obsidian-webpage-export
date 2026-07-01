@@ -15,6 +15,8 @@ export class Tree implements FeatureGenerator
 	public makeLinksWebStyle: boolean = false;
 	public renderMarkdownTitles: boolean = true;
 	public addCollapseAllButton: boolean = true;
+	public addExpandAllButton: boolean = false;
+	public addDepthControl: boolean = false;
 	public container: HTMLElement | undefined = undefined;
 
 	protected async buildTreeRecursive(tree: TreeItem, container: HTMLElement, minDepth:number = 1, closeAllItems: boolean = false): Promise<void>
@@ -52,19 +54,42 @@ export class Tree implements FeatureGenerator
 		this.container = container;
 		const wrapper = container.createDiv({ attr: {id: this.id, class: this.class + " tree-container"} });
 		const header = wrapper.createDiv("feature-header");
-		if (this.title || this.addCollapseAllButton)
+		if (this.title || this.addCollapseAllButton || this.addExpandAllButton || this.addDepthControl)
 		{
 			if (this.title)
 			{
 				const titleEl = header.createDiv("feature-title"); // Renamed to avoid conflict
 				titleEl.textContent = this.title;
 			}
+
+			const actionsEl = header.createDiv("tree-header-actions");
+
+			if (this.addDepthControl)
+			{
+				const depthControl = actionsEl.createDiv({ cls: "tree-depth-control" });
+				const decreaseBtn = depthControl.createEl("button", { cls: "clickable-icon nav-action-button tree-depth-decrease" });
+				decreaseBtn.setAttribute("aria-label", "Collapse deeper levels");
+				decreaseBtn.textContent = "−";
+				const depthValue = depthControl.createSpan({ cls: "tree-depth-value" });
+				depthValue.textContent = "1";
+				const increaseBtn = depthControl.createEl("button", { cls: "clickable-icon nav-action-button tree-depth-increase" });
+				increaseBtn.setAttribute("aria-label", "Expand deeper levels");
+				increaseBtn.textContent = "+";
+			}
+
+			if (this.addExpandAllButton)
+			{
+				const expandAllEl = actionsEl.createEl("button", { cls: "clickable-icon nav-action-button tree-expand-all" });
+				expandAllEl.setAttribute("aria-label", "Expand All");
+				expandAllEl.innerHTML = "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m7 4 5 5 5-5'/><path d='m7 20 5-5 5 5'/></svg>";
+			}
+
 			if (this.addCollapseAllButton)
 			{
-				const collapseAllEl = header.createEl('button', { cls: "clickable-icon nav-action-button tree-collapse-all" });
-					collapseAllEl.setAttribute("aria-label", "Collapse All");
-					collapseAllEl.innerHTML = "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'></svg>";
-					if (this.generateWithItemsClosed) collapseAllEl.classList.add("is-collapsed");
+				const collapseAllEl = actionsEl.createEl("button", { cls: "clickable-icon nav-action-button tree-collapse-all" });
+				collapseAllEl.setAttribute("aria-label", "Collapse All");
+				collapseAllEl.innerHTML = "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'></svg>";
+				if (this.generateWithItemsClosed) collapseAllEl.classList.add("is-collapsed");
 			}
 		}
 

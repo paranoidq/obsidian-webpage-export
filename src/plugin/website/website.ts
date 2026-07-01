@@ -1,5 +1,6 @@
 import { Attachment } from "src/plugin/utils/downloadable";
 import { FileTree } from "src/plugin/features/file-tree";
+import { CascadeContentTree } from "src/plugin/features/cascade-content-tree";
 import {  TAbstractFile, TFile, TFolder } from "obsidian";
 import {  Settings } from "src/plugin/settings/settings";
 import { Path } from "src/plugin/utils/path";
@@ -217,27 +218,25 @@ export class Website
 			// create file tree asset
 			if (this.exportOptions.fileNavigationOptions.enabled)
 			{
-				const paths = this.index.attachmentsShownInTree.map((file) =>
+				if (this.cascadeContext)
 				{
-					if (this.cascadeContext && file.source instanceof TFile)
-						return file.targetPath.copy;
+					const entryWebpage = this.index.getWebpage(this.cascadeContext.entrySourcePath);
+					this.fileTree = new CascadeContentTree(this, this.cascadeContext, entryWebpage);
+					this.fileTree.generateWithItemsClosed = false;
+				}
+				else
+				{
+					const paths = this.index.attachmentsShownInTree.map((file) => new Path(file.sourcePathRootRelative ?? ""));
+					this.fileTree = new FileTree(paths, false, true);
+					this.fileTree.generateWithItemsClosed = true;
+				}
 
-					return new Path(file.sourcePathRootRelative ?? "");
-				});
-				this.fileTree = new FileTree(paths, false, true);
 				this.fileTree.makeLinksWebStyle = this.exportOptions.slugifyPaths ?? true;
 				this.fileTree.showNestingIndicator = true;
-				this.fileTree.generateWithItemsClosed = true;
 				this.fileTree.showFileExtentionTags = true;
 				this.fileTree.hideFileExtentionTags = ["md"];
 				this.fileTree.title = this.exportOptions.siteName ?? app.vault.getName();
 				this.fileTree.id = "file-explorer";
-				if (this.cascadeContext)
-				{
-					const entry = this.index.attachmentsShownInTree.find((file) => file.sourcePath == this.cascadeContext?.entrySourcePath);
-					this.fileTree.entryPath = entry?.targetPath.path;
-					this.fileTree.collapsedFolderPaths.add("links");
-				}
 				const tempContainer = document.createElement("div");
 				await this.fileTree.generate(tempContainer);
 				const data = tempContainer.innerHTML;

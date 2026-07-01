@@ -348,6 +348,14 @@ export class Tree extends TreeItem
 	public rootEl: HTMLElement;
 	// public titleEl: HTMLElement;
 	public collapseAllEl: HTMLElement;
+	public expandAllEl: HTMLElement | undefined;
+	public depthControlEl: HTMLElement | undefined;
+	public depthValueEl: HTMLElement | undefined;
+	public depthDecreaseEl: HTMLElement | undefined;
+	public depthIncreaseEl: HTMLElement | undefined;
+
+	private visibleDepth: number = Infinity;
+	private maxDepth: number = 1;
 
 	private collapsePath1: SVGPathElement;
 	private collapsePath2: SVGPathElement;
@@ -376,6 +384,11 @@ export class Tree extends TreeItem
 		this.innerEl = this.rootEl;
 
 		this.collapseAllEl = this.rootEl.querySelector(".tree-collapse-all") as HTMLElement;
+		this.expandAllEl = this.rootEl.querySelector(".tree-expand-all") as HTMLElement | undefined;
+		this.depthControlEl = this.rootEl.querySelector(".tree-depth-control") as HTMLElement | undefined;
+		this.depthValueEl = this.rootEl.querySelector(".tree-depth-value") as HTMLElement | undefined;
+		this.depthDecreaseEl = this.rootEl.querySelector(".tree-depth-decrease") as HTMLElement | undefined;
+		this.depthIncreaseEl = this.rootEl.querySelector(".tree-depth-increase") as HTMLElement | undefined;
 		const collapseSvg = this.collapseAllEl?.querySelector("svg");
 		if (collapseSvg) 
 		{
@@ -393,9 +406,52 @@ export class Tree extends TreeItem
 
 		this.collapseAllEl?.addEventListener("click", () =>
 		{
+			if (this.expandAllEl)
+			{
+				this.collapsedRecursive = true;
+				this.visibleDepth = 0;
+				this.updateDepthDisplay();
+				this.setCollapseIcon(true);
+				return;
+			}
+
 			this.setCollapseIcon(!this.collapsedRecursive);
 			this.collapsedRecursive = !this.collapsedRecursive;
 		});
+
+		this.expandAllEl?.addEventListener("click", () =>
+		{
+			this.maxDepth = this.computeMaxDepth();
+			this.visibleDepth = this.maxDepth;
+			this.collapsedRecursive = false;
+			this.expandToDepth(this.visibleDepth);
+			this.updateDepthDisplay();
+			this.setCollapseIcon(false);
+		});
+
+		if (this.depthControlEl)
+		{
+			this.maxDepth = this.computeMaxDepth();
+			this.visibleDepth = this.maxDepth;
+			this.updateDepthDisplay();
+
+			this.depthDecreaseEl?.addEventListener("click", () =>
+			{
+				this.visibleDepth = Math.max(0, this.visibleDepth - 1);
+				this.expandToDepth(this.visibleDepth);
+				this.updateDepthDisplay();
+				this.setCollapseIcon(this.visibleDepth <= 0);
+			});
+
+			this.depthIncreaseEl?.addEventListener("click", () =>
+			{
+				this.maxDepth = this.computeMaxDepth();
+				this.visibleDepth = Math.min(this.maxDepth, this.visibleDepth + 1);
+				this.expandToDepth(this.visibleDepth);
+				this.updateDepthDisplay();
+				this.setCollapseIcon(this.visibleDepth <= 0);
+			});
+		}
 
 		LinkHandler.initializeLinks(this.rootEl);
 
@@ -422,5 +478,33 @@ export class Tree extends TreeItem
 		const item = this.findByPath(path);
 		if (!item) return;
 		item.collapsed = false;
+	}
+
+	private computeMaxDepth(): number
+	{
+		let max = 1;
+		this.forAllChildren((child) =>
+		{
+			if (child.depth > max) max = child.depth;
+		});
+		return max;
+	}
+
+	public expandToDepth(maxVisibleDepth: number)
+	{
+		this.forAllChildren((child) =>
+		{
+			if (!child.collapsable) return;
+			child.collapsed = child.depth > maxVisibleDepth;
+		});
+		this._checkAnyChildrenOpen();
+	}
+
+	private updateDepthDisplay()
+	{
+		if (!this.depthValueEl) return;
+		this.depthValueEl.textContent = this.visibleDepth >= this.maxDepth
+			? String(this.maxDepth)
+			: String(this.visibleDepth);
 	}
 }

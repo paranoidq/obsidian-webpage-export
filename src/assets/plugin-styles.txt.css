@@ -68,6 +68,50 @@ a.tree-item-self.is-clickable {
 	padding: 0 !important;
 }
 
+.cascade-content-tree .feature-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+}
+
+.cascade-content-tree .tree-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	margin-left: auto;
+}
+
+.cascade-content-tree .tree-depth-control {
+	display: flex;
+	align-items: center;
+	gap: 0.125rem;
+	font-size: 0.85em;
+}
+
+.cascade-content-tree .tree-depth-value {
+	min-width: 1.25rem;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+}
+
+.cascade-content-tree .tree-depth-decrease,
+.cascade-content-tree .tree-depth-increase {
+	width: 1.5rem;
+	height: 1.5rem;
+	padding: 0;
+	font-size: 1rem;
+	line-height: 1;
+}
+
+.cascade-content-tree .nav-folder:not(.mod-collapsible) > .nav-folder-title {
+	cursor: default;
+}
+
+.cascade-content-tree .nav-folder:not(.mod-collapsible) > .nav-folder-title:hover {
+	text-decoration: none;
+}
+
 /*#region Headers */
 
 .heading p {
