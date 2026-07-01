@@ -74,7 +74,8 @@ export const language: i18n =
 			description: "控制文档本身的设置",
 			info_allowFoldingLists: "是否允许列表折叠",
 			info_allowFoldingHeadings: "是否允许标题折叠",
-			info_documentWidth: "文档的宽度"
+			info_documentWidth: "文档的宽度",
+			info_codeBlockCollapseThreshold: "行数超过该值的代码块将默认折叠（仅适用于带链接文件的本地网站导出）。设置为 0 或更小则关闭自动折叠。"
 		},
 		sidebars: {
 			title: "侧边栏",

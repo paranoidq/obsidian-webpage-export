@@ -1300,3 +1300,128 @@ body.theme-light .excalidraw-plugin svg.light {
 }
 
 /*#endregion  */
+
+/*#region Code Block Header */
+
+.code-block-wrapper {
+	position: relative;
+	margin: var(--p-spacing, 1em) 0;
+	border-radius: var(--code-radius, var(--radius-s, 6px));
+	overflow: hidden;
+	background-color: var(--code-background, var(--background-primary-alt));
+}
+
+.code-block-wrapper .code-block-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5em;
+	padding: 0.35em 0.75em;
+	cursor: pointer;
+	user-select: none;
+	font-size: var(--font-smaller, 0.85em);
+	color: var(--text-muted);
+	background-color: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.code-block-wrapper.is-collapsed .code-block-header {
+	border-bottom-color: transparent;
+}
+
+.code-block-wrapper .code-block-dots {
+	display: flex;
+	align-items: center;
+	gap: 0.5em;
+	flex-shrink: 0;
+}
+
+.code-block-wrapper .code-block-dot {
+	display: inline-block;
+	width: 0.75em;
+	height: 0.75em;
+	border-radius: 50%;
+	background-color: var(--text-faint);
+}
+
+.code-block-wrapper .code-block-dot:nth-child(1) {
+	background-color: #ff5f56;
+}
+
+.code-block-wrapper .code-block-dot:nth-child(2) {
+	background-color: #febc2e;
+}
+
+.code-block-wrapper .code-block-dot:nth-child(3) {
+	background-color: #28c840;
+}
+
+.code-block-wrapper .code-block-header-right {
+	display: flex;
+	align-items: center;
+	gap: 0.25em;
+	flex-shrink: 0;
+}
+
+.code-block-wrapper .code-block-fold-indicator {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	transform: rotate(90deg);
+	transition: transform 0.15s ease-in-out;
+	flex-shrink: 0;
+}
+
+.code-block-wrapper .code-block-fold-indicator.is-collapsed {
+	transform: rotate(0deg);
+}
+
+.code-block-wrapper .code-block-copy {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.3em;
+	padding: 0.25em 0.4em;
+	margin: 0;
+	border: none;
+	border-radius: var(--radius-s, 4px);
+	background-color: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	box-shadow: none;
+	flex-shrink: 0;
+	transition: color 0.1s ease-in-out, background-color 0.1s ease-in-out;
+}
+
+.code-block-wrapper .code-block-copy:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-hover);
+}
+
+.code-block-wrapper .code-block-copy.copied {
+	color: var(--text-success, var(--color-green));
+}
+
+.code-block-wrapper .code-block-copy.copy-failed {
+	color: var(--text-error, var(--color-red));
+}
+
+.code-block-wrapper .code-block-copy svg {
+	width: 1em;
+	height: 1em;
+}
+
+/* pre sits directly inside the wrapper; drop its own margin/radius */
+.code-block-wrapper > pre {
+	margin: 0 !important;
+	border-radius: 0 !important;
+}
+
+/* hide obsidian's native copy button inside processed code blocks */
+.code-block-wrapper > pre > button.copy-code-button,
+pre.code-block-processed > button.copy-code-button {
+	display: none !important;
+}
+
+/*#endregion */

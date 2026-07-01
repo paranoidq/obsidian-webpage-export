@@ -75,7 +75,8 @@ export const language: i18n =
 			description: "Control settings on the document itself",
 			info_allowFoldingLists: "Whether or not to allow lists to be folded",
 			info_allowFoldingHeadings: "Whether or not to allow headings to be folded",
-			info_documentWidth: "The width of the document"
+			info_documentWidth: "The width of the document",
+			info_codeBlockCollapseThreshold: "Code blocks with more lines than this will be collapsed by default (only for local website exports with linked files). Set to 0 or less to disable auto-collapsing."
 		},
 		sidebars: {
 			title: "Sidebars",

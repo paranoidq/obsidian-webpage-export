@@ -68,7 +68,8 @@ export const language: i18n =
 			description: "Controlla le impostazioni del documento",
 			info_allowFoldingLists: "Permettere o meno il piegamento delle liste",
 			info_allowFoldingHeadings: "Permettere o meno il piegamento dei titoli",
-			info_documentWidth: "Larghezza del documento"
+			info_documentWidth: "Larghezza del documento",
+			info_codeBlockCollapseThreshold: "I blocchi di codice con piu righe di questo valore verranno compressi per impostazione predefinita (solo per le esportazioni di siti web locali con file collegati). Imposta 0 o meno per disabilitare la compressione automatica."
 		},
 		sidebars: {
 			title: "Barre laterali",

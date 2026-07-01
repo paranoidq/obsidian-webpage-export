@@ -12,6 +12,7 @@ import { Tree } from "./trees";
 import { Aliases } from "./aliases";
 import { CascadeBreadcrumbs } from "./breadcrumbs";
 import { ImageViewer } from "./image-viewer";
+import { CodeBlocks } from "./code-blocks";
 
 export class WebpageDocument {
 	public title: string = "";
@@ -206,6 +207,7 @@ export class WebpageDocument {
 			this.processHeaders();
 			this.processCallouts();
 			this.processLists();
+			this.processCodeBlocks();
 		}
 
 		if (this.documentType == DocumentType.Canvas) {
@@ -242,6 +244,14 @@ export class WebpageDocument {
 		for (const listEl of listEls) {
 			this.lists.push(new List(listEl as HTMLElement, undefined));
 		}
+	}
+
+	public processCodeBlocks() {
+		if (!this.documentEl || !CodeBlocks.isEnabled()) return;
+		const threshold =
+			ObsidianSite.metadata.featureOptions.document
+				.codeBlockCollapseThreshold ?? 100;
+		CodeBlocks.process(this.documentEl, threshold);
 	}
 
 	public postProcess() {

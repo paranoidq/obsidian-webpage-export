@@ -80,6 +80,7 @@ export interface i18n
 			info_allowFoldingLists: string;
 			info_allowFoldingHeadings: string;
 			info_documentWidth: string;
+			info_codeBlockCollapseThreshold: string;
 		},
 		sidebars: {
 			title: string;
