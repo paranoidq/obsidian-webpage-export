@@ -154,6 +154,179 @@ export namespace _MarkdownRendererInternal {
 		});
 	}
 
+	function unfoldHiddenPreviewContainers(root: HTMLElement): HTMLElement[]
+	{
+		const unfolded: HTMLElement[] = [];
+
+		root.querySelectorAll(".callout-content, .admonition-content").forEach((element) =>
+		{
+			const el = element as HTMLElement;
+			const computed = window.getComputedStyle(el);
+			if (el.style.display === "none" || computed.display === "none")
+			{
+				el.style.display = "";
+				unfolded.push(el);
+			}
+			if (computed.maxHeight === "0px" || el.style.maxHeight === "0")
+			{
+				el.style.maxHeight = "";
+				el.style.overflow = "";
+			}
+		});
+
+		root.querySelectorAll(".admonition.is-collapsed, .admonition-folded, .admonition[data-collapsed='true']").forEach((element) =>
+		{
+			element.classList.remove("is-collapsed", "admonition-folded");
+			element.removeAttribute("data-collapsed");
+		});
+
+		return unfolded;
+	}
+
+	const EXCALIDRAW_FALLBACK_MARKER = "Switch to EXCALIDRAW VIEW";
+
+	function isExcalidrawFile(file: TFile): boolean
+	{
+		if (file.extension === "excalidraw" || file.path.endsWith(".excalidraw.md")) return true;
+		return app.metadataCache.getFileCache(file)?.frontmatter?.["excalidraw-plugin"] != undefined;
+	}
+
+	function resolveEmbedTarget(link: string | undefined, sourcePath: string): TFile | undefined
+	{
+		if (!link) return;
+
+		let linkPath = link;
+		if (linkPath.startsWith("app://"))
+		{
+			try
+			{
+				// @ts-ignore
+				linkPath = app.vault.resolveFileUrl(linkPath)?.path ?? "";
+			}
+			catch
+			{
+				linkPath = linkPath.replace(/^app:\/\/[^/]+\//, "");
+			}
+		}
+
+		linkPath = decodeURIComponent(linkPath)
+			.split("#")[0]
+			.split("?")[0]
+			.split("|")[0]
+			.trim();
+
+		const target = app.metadataCache.getFirstLinkpathDest(linkPath, sourcePath);
+		return target instanceof TFile ? target : undefined;
+	}
+
+	function getFallbackEmbedFile(element: HTMLElement, sourceFile: TFile): TFile | undefined
+	{
+		const embed = element.closest(".internal-embed") as HTMLElement | null;
+		const markdownEmbed = element.closest(".markdown-embed") as HTMLElement | null;
+		const links = [
+			embed?.getAttribute("src"),
+			markdownEmbed?.querySelector(".markdown-embed-link")?.getAttribute("href"),
+			markdownEmbed?.querySelector(".markdown-embed-link")?.getAttribute("data-href"),
+			markdownEmbed?.querySelector(".markdown-embed-title")?.textContent,
+		];
+
+		for (const link of links)
+		{
+			const file = resolveEmbedTarget(link ?? undefined, sourceFile.path);
+			if (file && isExcalidrawFile(file)) return file;
+		}
+
+		return undefined;
+	}
+
+	function getExcalidrawAutomate(): any | undefined
+	{
+		// @ts-ignore
+		return window.ExcalidrawAutomate ?? app.plugins?.plugins?.["obsidian-excalidraw-plugin"]?.ea;
+	}
+
+	async function renderExcalidrawSvgFromFile(file: TFile, restoreFile: TFile): Promise<SVGElement | undefined>
+	{
+		const ea = getExcalidrawAutomate();
+		if (ea?.createSVG)
+		{
+			try
+			{
+				ea.reset?.();
+				const svg = await ea.createSVG(file.path);
+				if (svg instanceof SVGSVGElement) return svg;
+			}
+			catch (error)
+			{
+				ExportLog.warning(error, `ExcalidrawAutomate.createSVG failed for ${file.path}`);
+			}
+		}
+
+		if (!renderLeaf) return;
+
+		try
+		{
+			await renderLeaf.openFile(file, { active: false });
+			await delay(500);
+
+			const view = renderLeaf.view as any;
+			if (view?.getViewType?.() !== "excalidraw" || !view?.excalidrawData?.scene || !view?.svg) return;
+
+			return await view.svg(view.excalidrawData.scene, "", false);
+		}
+		catch (error)
+		{
+			ExportLog.warning(error, `Failed to render Excalidraw SVG for ${file.path}`);
+			return;
+		}
+		finally
+		{
+			if (restoreFile.path !== file.path)
+			{
+				try
+				{
+					await renderLeaf?.openFile(restoreFile, { active: false });
+				}
+				catch { /* ignore restore failures */ }
+			}
+		}
+	}
+
+	async function fixFallbackExcalidrawEmbeds(root: HTMLElement, sourceFile: TFile): Promise<void>
+	{
+		// @ts-ignore
+		if (!app.plugins?.enabledPlugins?.has("obsidian-excalidraw-plugin")) return;
+
+		const fallbackEls = Array.from(root.querySelectorAll(".internal-embed, .markdown-embed, .admonition-content, .callout-content"))
+			.filter((element) => (element.textContent ?? "").includes(EXCALIDRAW_FALLBACK_MARKER)) as HTMLElement[];
+		const seen = new Set<HTMLElement>();
+
+		for (const fallbackEl of fallbackEls)
+		{
+			const target = (fallbackEl.closest(".internal-embed") ?? fallbackEl.closest(".markdown-embed") ?? fallbackEl) as HTMLElement;
+			if (seen.has(target)) continue;
+			seen.add(target);
+
+			const file = getFallbackEmbedFile(target, sourceFile);
+			if (!file) continue;
+
+			const svg = await renderExcalidrawSvgFromFile(file, sourceFile);
+			if (!svg) continue;
+
+			const isLight = !svg.getAttribute("filter");
+			if (!isLight) svg.removeAttribute("filter");
+			svg.classList.add(isLight ? "light" : "dark");
+
+			const wrapper = document.createElement("div");
+			wrapper.classList.add("excalidraw-svg");
+			wrapper.appendChild(svg);
+
+			const embedBody = target.querySelector(".markdown-embed-content") ?? target.querySelector(".markdown-embed") ?? target;
+			embedBody.innerHTML = "";
+			embedBody.appendChild(wrapper);
+		}
+	}
+
 	function failRender(file: TFile | undefined, message: any): undefined {
 		if (checkCancelled()) return undefined;
 
@@ -320,12 +493,7 @@ export namespace _MarkdownRendererInternal {
 			// @ts-ignore
 			await preview.postProcess(section, promises, renderer.frontmatter);
 
-			// unfold callouts
-			const folded = Array.from(section.el.querySelectorAll(".callout-content[style*='display: none']")) as HTMLElement[];
-			for (const callout of folded) {
-				callout.style.display = "";
-			}
-			foldedCallouts.push(...folded);
+			foldedCallouts.push(...unfoldHiddenPreviewContainers(section.el));
 
 			// wait for transclusions
 			await waitUntil(() => !section.el.querySelector(".markdown-preview-pusher") || section.el.querySelector(".markdown-preview-pusher + *") != null || checkCancelled(), 500, 1);
@@ -337,6 +505,9 @@ export namespace _MarkdownRendererInternal {
 
 			// wait for generic plugins
 			await waitUntil(() => !section.el.querySelector("[class^='block-language-']:empty") || checkCancelled(), 500, 1);
+			if (checkCancelled()) return undefined;
+
+			await fixFallbackExcalidrawEmbeds(section.el, preview.file);
 			if (checkCancelled()) return undefined;
 
 			// convert canvas elements into images here because otherwise they will lose their data when moved
@@ -475,6 +646,9 @@ export namespace _MarkdownRendererInternal {
 
 		await Utils.delay(16);
 
+		unfoldHiddenPreviewContainers(preview.containerEl);
+		unfoldHiddenPreviewContainers(previewEl);
+
 		let rendered = false;
 		// @ts-ignore
 		preview.renderer.onRendered(() => {
@@ -504,17 +678,9 @@ export namespace _MarkdownRendererInternal {
 		// @ts-ignore
 		const foldedCallouts: HTMLElement[] = [];
 		for (const section of sections) {
-			// unfold callouts
-			const folded = Array.from(
-				section.el.querySelectorAll(
-					".callout-content[style*='display: none']"
-				)
-			) as HTMLElement[];
-			for (const callout of folded) {
-				callout.style.display = "";
-			}
-			foldedCallouts.push(...folded);
+			foldedCallouts.push(...unfoldHiddenPreviewContainers(section.el));
 		}
+		foldedCallouts.push(...unfoldHiddenPreviewContainers(preview.containerEl));
 
 		await Utils.delay(5);
 
@@ -621,6 +787,9 @@ export namespace _MarkdownRendererInternal {
 			);
 		}
 
+		await fixFallbackExcalidrawEmbeds(preview.containerEl, preview.file);
+		if (checkCancelled()) return undefined;
+
 		// convert canvas elements into images here because otherwise they will lose their data when moved
 		const canvases = Array.from(
 			preview.containerEl.querySelectorAll(
@@ -664,6 +833,8 @@ export namespace _MarkdownRendererInternal {
 		}
 
 		newSizerEl.innerHTML = sizerEl.innerHTML;
+		await fixFallbackExcalidrawEmbeds(newSizerEl, preview.file);
+		if (checkCancelled()) return undefined;
 
 		// get banner plugin banner and insert it before the sizer element
 		const banner = preview.containerEl.querySelector(
@@ -1209,6 +1380,7 @@ export namespace _MarkdownRendererInternal {
 			element.textContent = renderEl.textContent;
 			renderEl.remove();
 		}
+
 	}
 
 	export async function beginBatch(options: MarkdownRendererOptions) {

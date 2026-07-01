@@ -1059,7 +1059,8 @@ body.image-lightbox-open {
 	overflow: hidden;
 }
 
-.image-viewer-enabled .markdown-preview-sizer img:not(.emoji) {
+.image-viewer-enabled .markdown-preview-sizer img:not(.emoji),
+.image-viewer-enabled :is(.internal-embed, .markdown-embed, .media-embed, .excalidraw-svg, .excalidraw-plugin) img:not(.emoji) {
 	cursor: zoom-in;
 }
 
@@ -1106,8 +1107,6 @@ body.image-lightbox-open {
 
 .image-lightbox-image {
 	display: block;
-	width: auto;
-	height: auto;
 	max-width: 90vw;
 	max-height: 85vh;
 	object-fit: contain;

@@ -88,7 +88,7 @@ export class CascadeExportResolver
 			{
 				if (!this.isCascadePageFile(linkedFile))
 				{
-					if (!resourceSourcePaths.has(linkedFile.path))
+					if (this.shouldExportAsCascadeResource(linkedFile) && !resourceSourcePaths.has(linkedFile.path))
 					{
 						resourceSourcePaths.add(linkedFile.path);
 						resourceFiles.push(linkedFile);
@@ -122,6 +122,13 @@ export class CascadeExportResolver
 	{
 		if (!MarkdownRendererAPI.isConvertable(file.extension)) return false;
 		return !MarkdownRendererAPI.viewableMediaExtensions.contains(file.extension);
+	}
+
+	private static shouldExportAsCascadeResource(file: TFile): boolean
+	{
+		const extension = file.extension.toLowerCase();
+		if (["html", "htm", "pdf"].includes(extension)) return true;
+		return !MarkdownRendererAPI.isConvertable(extension);
 	}
 
 	private static getLinkedFiles(file: TFile): TFile[]

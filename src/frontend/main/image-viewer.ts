@@ -28,7 +28,7 @@ export class ImageViewer {
 		"#navbar, #left-sidebar, #right-sidebar, #file-explorer, #outline, .graph-view-wrapper, .canvas-wrapper, .graph-view-container, #webpage-icon";
 
 	private static readonly CONTENT_SELECTORS =
-		".markdown-preview-sizer, .excalidraw-svg, .excalidraw-plugin, .mermaid, .block-language-mermaid";
+		".markdown-preview-sizer, .internal-embed, .markdown-embed, .media-embed, .excalidraw-svg, .excalidraw-plugin, .mermaid, .block-language-mermaid";
 
 	private static readonly ZOOM_OUT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/></svg>`;
 
@@ -83,6 +83,11 @@ export class ImageViewer {
 			return { type: "img", element: img };
 		}
 
+		const embedImg = this.findEmbedImage(target);
+		if (embedImg) {
+			return { type: "img", element: embedImg };
+		}
+
 		const mermaidSvg = this.findMermaidSvg(target);
 		if (mermaidSvg) {
 			return { type: "svg", element: mermaidSvg };
@@ -94,6 +99,14 @@ export class ImageViewer {
 		}
 
 		return null;
+	}
+
+	private findEmbedImage(target: Element): HTMLImageElement | null {
+		const container = target.closest(".internal-embed, .markdown-embed, .media-embed, .excalidraw-svg, .excalidraw-plugin");
+		if (!container || !this.isInDocumentContent(container)) return null;
+
+		const img = container.querySelector("img");
+		return img instanceof HTMLImageElement && this.isEligibleImage(img) ? img : null;
 	}
 
 	private isInDocumentContent(element: Element): boolean {
@@ -230,10 +243,15 @@ export class ImageViewer {
 		this.stage.replaceChildren();
 
 		if (source.type === "img") {
-			const imageEl = document.createElement("img");
+			const imageEl = source.element.cloneNode(true) as HTMLImageElement;
 			imageEl.src = source.element.currentSrc || source.element.src;
 			imageEl.alt = source.element.alt || "";
-			imageEl.className = "image-lightbox-image";
+			imageEl.classList.add("image-lightbox-image");
+			const rect = source.element.getBoundingClientRect();
+			if (rect.width > 0 && rect.height > 0) {
+				imageEl.style.width = `${rect.width}px`;
+				imageEl.style.height = `${rect.height}px`;
+			}
 			this.stage.appendChild(imageEl);
 			this.viewEl = imageEl;
 

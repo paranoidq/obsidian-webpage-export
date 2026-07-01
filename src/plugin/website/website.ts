@@ -407,15 +407,15 @@ export class Website
 			}
 		}
 
-		// if excalidraw installed and the embed mode is not set to Native SVG, warn
+		// if excalidraw installed, warn when embed mode and auto-export may not work
 		// @ts-ignore
 		if (app.plugins?.enabledPlugins?.has("obsidian-excalidraw-plugin"))
 		{
 			// @ts-ignore
-			const embedMode = app.plugins?.plugins?.['obsidian-excalidraw-plugin']?.settings?.['previewImageType'] ?? "";		
-			if (embedMode != "SVG")
+			const embedMode = app.plugins?.plugins?.['obsidian-excalidraw-plugin']?.settings?.['previewImageType'] ?? "";
+			if (embedMode != "SVG" && embedMode != "SVGIMG" && embedMode != "PNG")
 			{
-				ExportLog.warning("For Excalidraw embed support, set the embed mode to \"Native SVG\" in the Excalidraw plugin settings.");
+				ExportLog.warning("For Excalidraw embed support, set the embed mode to SVG Image, Native SVG, or PNG in the Excalidraw plugin settings.");
 			}
 		}
 

@@ -636,7 +636,8 @@ export class Webpage extends Attachment
 		for (const src of sources)
 		{
 			if ((!src.startsWith("app://") && /\w+:(\/\/|\\\\)/.exec(src)) || // link is a URL except for app://
-				src.startsWith("data:")) // link is a data URL
+				src.startsWith("data:") || // link is a data URL
+				src.startsWith("blob:")) // temporary browser object URLs are handled by inlineMedia
 			continue;
 
 			const sourcePath = this.website.getFilePathFromSrc(src, this.source.path).pathname;
@@ -663,6 +664,8 @@ export class Webpage extends Attachment
 		if ((!link.startsWith("app://") && /\w+:(\/\/|\\\\)/.exec(link)))
 			return;
 		if (link.startsWith("data:"))
+			return;
+		if (link.startsWith("blob:"))
 			return;
 		if (link?.startsWith("?")) 
 			return;
@@ -789,11 +792,23 @@ export class Webpage extends Attachment
 		for (const mediaEl of elements)
 		{
 			const rawSrc = mediaEl.getAttribute("src") ?? "";
+			if (rawSrc.startsWith("blob:"))
+			{
+				const response = await fetch(rawSrc);
+				if (!response.ok) continue;
+
+				const blob = await response.blob();
+				const base64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
+				const type = blob.type || "application/octet-stream";
+				mediaEl.setAttribute("src", `data:${type};base64,${base64}`);
+				continue;
+			}
+
 			const filePath = this.website.getFilePathFromSrc(rawSrc, this.source.path);
 			if (filePath.isEmpty || filePath.isDirectory || filePath.isAbsolute) continue;
 
 			const base64 = await filePath.readAsString("base64");
-			if (!base64) return;
+			if (!base64) continue;
 
 			let ext = filePath.extensionName;
 
