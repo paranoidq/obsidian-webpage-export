@@ -39,11 +39,10 @@ export class CascadeContentTree extends FileTree
 		this.headingSlugCounts.clear();
 
 		const entryFile = this.cascadeContext.entryFile;
-		const entryTitle = (await _MarkdownRendererInternal.getTitleForFile(entryFile)).title;
 		const entryIcon = (await _MarkdownRendererInternal.getIconForFile(entryFile)).icon;
 
 		const entryRoot = new FileTreeItem(this, this, 1);
-		entryRoot.title = entryTitle;
+		entryRoot.title = entryFile.basename;
 		entryRoot.icon = entryIcon;
 		entryRoot.href = this.entryExportPath;
 		entryRoot.dataRef = this.entryExportPath;

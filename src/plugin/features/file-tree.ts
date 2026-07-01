@@ -287,11 +287,7 @@ export class FileTreeItem extends TreeItem
 		}
 
 		if (this.isEntry)
-		{
 			self.classList.add("is-cascade-entry");
-			const marker = self.createDiv({ cls: "nav-file-entry-marker" });
-			marker.textContent = "★";
-		}
 
 		return self;
 	}

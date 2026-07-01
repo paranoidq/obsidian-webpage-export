@@ -235,7 +235,10 @@ export class Website
 				this.fileTree.showNestingIndicator = true;
 				this.fileTree.showFileExtentionTags = true;
 				this.fileTree.hideFileExtentionTags = ["md"];
-				this.fileTree.title = this.exportOptions.siteName ?? app.vault.getName();
+				if (this.cascadeContext)
+					this.fileTree.title = "";
+				else
+					this.fileTree.title = this.exportOptions.siteName ?? app.vault.getName();
 				this.fileTree.id = "file-explorer";
 				const tempContainer = document.createElement("div");
 				await this.fileTree.generate(tempContainer);
@@ -641,7 +644,18 @@ export class Website
 	public async saveAsCombinedHTML(): Promise<void>
 	{
 		const html = await this.getCombinedHTML();
-		const path = this.destination.joinString(this.exportOptions.siteName + ".html");
+		let outputName: string;
+		if (this.cascadeContext)
+		{
+			const entry = this.index.getWebpage(this.cascadeContext.entrySourcePath);
+			outputName = entry?.targetPath.fullName
+				?? new Path(this.cascadeContext.entryFile.basename).setExtension("html").fullName;
+		}
+		else
+		{
+			outputName = this.exportOptions.siteName + ".html";
+		}
+		const path = this.destination.joinString(outputName);
 		await path.write(html);
 	}
 }
