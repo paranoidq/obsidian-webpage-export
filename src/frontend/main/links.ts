@@ -28,6 +28,12 @@ export class LinkHandler
 					event.stopPropagation();
 					ObsidianSite.loadURL(target);
 				}
+				else if (ObsidianSite.supportsClientSideHistory && isKnownFile)
+				{
+					event.preventDefault();
+					event.stopPropagation();
+					window.location.assign(LinkHandler.getExportRelativeHref(target));
+				}
 
 				// Close the sidebar containing this link on phone
 				if (ObsidianSite.deviceSize === "phone")

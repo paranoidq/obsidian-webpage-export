@@ -111,7 +111,7 @@ export class CascadeContentTree extends FileTree
 				const linkedFile = this.extractFirstInternalLink(rawContent, sourceFile);
 				const displayTitle = this.getListItemTitle(rawContent, linkedFile);
 
-				if (linkedFile && this.isCascadePage(linkedFile.path))
+				if (linkedFile)
 				{
 					const exportPath = this.getExportPath(linkedFile);
 					if (exportPath)
@@ -312,15 +312,13 @@ export class CascadeContentTree extends FileTree
 			|| (!link.startsWith("app://") && /\w+:(\/\/|\\\\)/.test(link));
 	}
 
-	private isCascadePage(sourcePath: string): boolean
-	{
-		return this.cascadeContext.pageFiles.some((file) => file.path === sourcePath);
-	}
-
 	private getExportPath(file: TFile): string | undefined
 	{
 		const webpage = this.website.index.getWebpage(file.path);
-		return webpage?.targetPath.path;
+		if (webpage) return webpage.targetPath.path;
+
+		const attachment = this.website.index.getFile(file.path, true);
+		return attachment?.targetPath.path;
 	}
 
 	private assignContentTreeOrder(): void
