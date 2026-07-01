@@ -28,7 +28,7 @@ export class ImageViewer {
 		"#navbar, #left-sidebar, #right-sidebar, #file-explorer, #outline, .graph-view-wrapper, .canvas-wrapper, .graph-view-container, #webpage-icon";
 
 	private static readonly CONTENT_SELECTORS =
-		".markdown-preview-sizer, .excalidraw-svg, .excalidraw-plugin";
+		".markdown-preview-sizer, .excalidraw-svg, .excalidraw-plugin, .mermaid, .block-language-mermaid";
 
 	private static readonly ZOOM_OUT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/></svg>`;
 
@@ -83,6 +83,11 @@ export class ImageViewer {
 			return { type: "img", element: img };
 		}
 
+		const mermaidSvg = this.findMermaidSvg(target);
+		if (mermaidSvg) {
+			return { type: "svg", element: mermaidSvg };
+		}
+
 		const svg = target.closest("svg");
 		if (svg instanceof SVGSVGElement && this.isEligibleSvg(svg)) {
 			return { type: "svg", element: svg };
@@ -102,6 +107,14 @@ export class ImageViewer {
 		if (!this.isInDocumentContent(img)) return false;
 		if (!img.getAttribute("src")) return false;
 		return true;
+	}
+
+	private findMermaidSvg(target: Element): SVGSVGElement | null {
+		const container = target.closest(".mermaid, .block-language-mermaid");
+		if (!container || !this.isInDocumentContent(container)) return null;
+
+		const svg = container.querySelector("svg");
+		return svg instanceof SVGSVGElement ? svg : null;
 	}
 
 	private isEligibleSvg(svg: SVGSVGElement): boolean {

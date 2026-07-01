@@ -1064,7 +1064,9 @@ body.image-lightbox-open {
 }
 
 .image-viewer-enabled .excalidraw-svg > svg,
-.image-viewer-enabled .excalidraw-plugin > svg {
+.image-viewer-enabled .excalidraw-plugin > svg,
+.image-viewer-enabled .mermaid svg,
+.image-viewer-enabled .block-language-mermaid svg {
 	cursor: zoom-in;
 }
 
