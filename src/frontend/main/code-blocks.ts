@@ -142,11 +142,49 @@ export class CodeBlock
 		this.copyButtonEl.addEventListener("click", async (event) =>
 		{
 			event.stopPropagation();
-			// preserve all newlines and whitespace exactly
-			const text = this.codeEl.textContent ?? "";
+			const text = this.getCodeText();
 			const success = await CodeBlocks.copyText(text);
 			this.showCopyFeedback(success);
 		});
+	}
+
+	/**
+	 * Extract the code text while preserving the original line breaks and
+	 * indentation. Handles the standard reading-mode structure (literal "\n"
+	 * text nodes) as well as code-enhancer plugins that split each line into a
+	 * separate element or use <br> for line breaks, where a plain textContent
+	 * read would collapse everything onto a single line.
+	 */
+	private getCodeText(): string
+	{
+		const raw = this.codeEl.textContent ?? "";
+		if (raw.includes("\n")) return raw;
+
+		// <br>-separated lines
+		if (this.codeEl.querySelector("br"))
+		{
+			const clone = this.codeEl.cloneNode(true) as HTMLElement;
+			clone.querySelectorAll("br").forEach((br) =>
+				br.replaceWith(document.createTextNode("\n"))
+			);
+			const text = clone.textContent ?? "";
+			if (text.includes("\n")) return text;
+		}
+
+		// per-line block elements (Code Styler / CodeMirror / similar)
+		const lineSelectors = [".cm-line", ".code-styler-line", ".code-line", ".line"];
+		for (const selector of lineSelectors)
+		{
+			const lineEls = this.codeEl.querySelectorAll(selector);
+			if (lineEls.length > 1)
+			{
+				return Array.from(lineEls)
+					.map((el) => el.textContent ?? "")
+					.join("\n");
+			}
+		}
+
+		return raw;
 	}
 
 	private showCopyFeedback(success: boolean)
