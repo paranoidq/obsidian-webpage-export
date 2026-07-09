@@ -1,6 +1,5 @@
 import { AssetLoader } from "./base-asset.js";
 import { AssetType, InlinePolicy, LoadMethod, Mutability } from "./asset-types.js";
-import { Settings } from "src/plugin/settings/settings";
 
 export class GlobalVariableStyles extends AssetLoader
 {
@@ -11,7 +10,8 @@ export class GlobalVariableStyles extends AssetLoader
     
     override async load()
     {
-        const bodyStyle = (document.body.getAttribute("style") ?? "").replaceAll("\"", "'").replaceAll("; ", " !important;\n\t");
+		// Only layout sizing variables — do not copy Obsidian body inline styles
+		// (those can inject dark-mode runtime values into a frozen light export).
 		let lineWidth = this.exportOptions.documentOptions.documentWidth || "40em";
 		let sidebarWidthRight = this.exportOptions.sidebarOptions.rightDefaultWidth;
 		let sidebarWidthLeft = this.exportOptions.sidebarOptions.leftDefaultWidth;
@@ -29,11 +29,6 @@ export class GlobalVariableStyles extends AssetLoader
 			--file-line-width: ${lineWidthCss};
 			--sidebar-width-right: min(${sidebarWidthRight}, 80vw);
 			--sidebar-width-left: min(${sidebarWidthLeft}, 80vw);
-        }
-
-		body
-        {
-            ${bodyStyle}
         }
         `
 

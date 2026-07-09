@@ -142,7 +142,9 @@ export class WebpageTemplate
 
 		let validClasses = "";
 		validClasses += " publish ";
-		validClasses += " css-settings-manager ";
+		// Do NOT add css-settings-manager: Prism's default color palette is gated
+		// behind `.theme-light:not(.css-settings-manager)`. Style Settings overrides
+		// are frozen separately into CSS variables instead.
 		
 		// keep body classes that are referenced in the styles
 		const styles = AssetHandler.getAssetsOfType(AssetType.Style);
@@ -189,6 +191,22 @@ export class WebpageTemplate
 		// convert to array and remove duplicates
 		ExportLog.progress(0, "Filter duplicate classes", result.length + " classes", "var(--color-yellow)");
 		result = result.split(" ").filter((value, index, self) => self.indexOf(value) === index).join(" ").trim();
+
+		// Frozen light export: always force theme-light + Code Styler + Prism defaults.
+		const classSet = new Set(result.split(" ").filter(Boolean));
+		classSet.delete("theme-dark");
+		classSet.delete("css-settings-manager");
+		classSet.add("theme-light");
+		classSet.add("code-styler");
+		// Matches frozen Code Styler currentTheme settings (data.json snapshot).
+		classSet.add("code-styler-style-inline");
+		classSet.add("code-styler-gutter-highlight");
+		// Prism Style Settings default class-selects (swan / two-tone / purple accent).
+		classSet.add("pt-color-scheme-swan-lt");
+		classSet.add("pt-color-scheme-style-two-tone-and-border-lt");
+		classSet.add("pt-accent-style-borderandfilled-lt");
+		classSet.add("pt-accent-color-purple-lt");
+		result = Array.from(classSet).join(" ");
 		
 		ExportLog.progress(0, "Classes done", "...", "var(--color-yellow)");
 

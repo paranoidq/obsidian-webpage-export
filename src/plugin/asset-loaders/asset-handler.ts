@@ -2,6 +2,7 @@ import graphWASMJS from "src/frontend/graph-view/graph-wasm.txt.js";
 import renderWorkerJS from "src/frontend/graph-view/graph-render-worker.txt.js";
 import graphWASM from "src/frontend/graph-view/graph-wasm.wasm";
 import webpageStyles from "src/assets/plugin-styles.txt.css";
+import frozenCodeStylerStyles from "src/assets/frozen-code-styler.txt.css";
 import deferredJS from "src/assets/deferred.txt.js";
 import deferredCSS from "src/assets/deferred.txt.css";
 import themeLoadJS from "src/assets/theme-load.txt.js";
@@ -94,6 +95,7 @@ export class AssetHandler
 	public static mathjaxStyles: MathjaxStyles;
 	public static globalDataStyles: GlobalVariableStyles;
 	public static supportedPluginStyles: SupportedPluginStyles;
+	public static codeStylerStyles: AssetLoader;
 	public static websiteStyles: AssetLoader;
 	public static deferredCSS: AssetLoader;
 
@@ -132,6 +134,7 @@ export class AssetHandler
 		this.globalDataStyles = new GlobalVariableStyles();
 		this.supportedPluginStyles = new SupportedPluginStyles();
 		this.websiteJS = new WebsiteJS();
+		this.codeStylerStyles = new AssetLoader("code-styler.css", frozenCodeStylerStyles, null, AssetType.Style, InlinePolicy.AutoHead, false, Mutability.Static, LoadMethod.Async, 7);
 		this.websiteStyles = new AssetLoader("main-styles.css", webpageStyles, null, AssetType.Style, InlinePolicy.AutoHead, true, Mutability.Static, LoadMethod.Async, 4);
 		this.deferredCSS = new AssetLoader("deferred.css", deferredCSS, null, AssetType.Style, InlinePolicy.InlineHead, true, Mutability.Static, LoadMethod.Defer, -1000);
 		this.graphWASMJS = new AssetLoader("graph-wasm.js", graphWASMJS, null, AssetType.Script, InlinePolicy.AutoHead, true, Mutability.Static);

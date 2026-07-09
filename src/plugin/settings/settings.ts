@@ -1,17 +1,10 @@
 import { Notice, Plugin, PluginSettingTab, Setting, TFile, TFolder, getIcon } from 'obsidian';
 import { Path } from 'src/plugin/utils/path';
-import pluginStylesBlacklist from 'src/assets/third-party-styles-blacklist.txt';
 import { ExportLog } from 'src/plugin/render-api/render-api';
 import { createDivider, createDropdown, createFeatureSetting, createFileInput, createSection, createText, createToggle, generateSettingsFromObject }  from './settings-components';
 import { ExportPipelineOptions } from "src/plugin/website/pipeline-options.js";
-import { FlowList } from 'src/plugin/features/flow-list';
 import { i18n } from '../translations/language';
-import { error } from 'console';
 import { EmojiStyle } from 'src/shared/website-data';
-import supportedStyleIds from "src/assets/plugin-style-ids.json";
-import { SupportedPluginStyles } from '../asset-loaders/supported-plugin-styles';
-import postcss from 'postcss';
-import safeParser from 'postcss-safe-parser';
 
 // #region Settings Definition
 
@@ -221,7 +214,6 @@ export class SettingsPage extends PluginSettingTab
 		createFeatureSetting(section, lang.graphView.title, 		Settings.exportOptions.graphViewOptions,		lang.graphView.description);
 		createFeatureSetting(section, lang.search.title,			Settings.exportOptions.searchOptions,			lang.search.description);
 		createFeatureSetting(section, lang.linkPreview.title,		Settings.exportOptions.linkPreviewOptions,		lang.linkPreview.description);
-		createFeatureSetting(section, lang.themeToggle.title,		Settings.exportOptions.themeToggleOptions,		lang.themeToggle.description);
 		createFeatureSetting(section, lang.customHead.title,		Settings.exportOptions.customHeadOptions,		lang.customHead.description);
 		createFeatureSetting(section, lang.backlinks.title,			Settings.exportOptions.backlinkOptions,			lang.backlinks.description);
 		createFeatureSetting(section, lang.tags.title,				Settings.exportOptions.tagOptions,				lang.tags.description);
@@ -277,63 +269,8 @@ export class SettingsPage extends PluginSettingTab
 			EmojiStyle, 
 			lang.iconEmojiStyle.description);
 
-		createDropdown(section, lang.themeName.title,
-			// @ts-ignore
-			() => Settings.exportOptions.themeName || app.vault?.config?.cssTheme || "Default",
-			(value) => Settings.exportOptions.themeName = value,
-			this.getInstalledThemesRecord(),
-			lang.themeName.description);
-	
-		new Setting(section)
-			.setName(lang.includeStyleCssIds.title)
-			.setDesc(lang.includeStyleCssIds.description)
-
-		const styleIdsList = new FlowList();
-		styleIdsList.generate(section);
-		this.getStyleTagIds().forEach(async (plugin) => 
-		{
-			if (supportedStyleIds.ids.contains(plugin) || supportedStyleIds.ignoreIds.contains(plugin)) return;
-
-			const isChecked = Settings.exportOptions.includeStyleCssIds.contains(plugin);
-
-			styleIdsList.addItem(plugin, plugin, isChecked, (value) => {
-				Settings.exportOptions.includeStyleCssIds = styleIdsList.checkedList;
-				SettingsPage.saveSettings();
-			});
-		});
-
-		new Setting(section)
-			.setName(lang.includePluginCSS.title)
-			.setDesc(lang.includePluginCSS.description)
-
-		const pluginsList = new FlowList();
-		styleIdsList.generate(section);
-		this.getPluginIDs().forEach(async (plugin) => 
-		{
-			//@ts-ignore
-			const pluginManifest = app.plugins.manifests[plugin];
-			if (!pluginManifest) return;
-
-			if ((await this.getBlacklistedPluginIDs()).contains(pluginManifest.id)) {
-				return;
-			}
-
-			const pluginDir = pluginManifest.dir;
-			if (!pluginDir) return;
-			const pluginPath = new Path(pluginDir);
-
-			const hasCSS = pluginPath.joinString('styles.css').exists;
-			if (!hasCSS) return;
-
-			const isChecked = Settings.exportOptions.includePluginCss.contains(plugin);
-
-			styleIdsList.addItem(pluginManifest.name, plugin, isChecked, (value) => {
-				Settings.exportOptions.includePluginCss = styleIdsList.checkedList;
-				SettingsPage.saveSettings();
-			});
-		});
-
-
+		// Theme / plugin / style-id selection removed: export CSS is frozen
+		// (Obsidian core + Prism + Code Styler) via Static assets.
 
 		//#endregion
 	
@@ -386,205 +323,11 @@ export class SettingsPage extends PluginSettingTab
 	static plugin: Plugin;
 	static loaded = false;
 
-	private blacklistedPluginIDs: string[] = [];
-	public async getBlacklistedPluginIDs(): Promise<string[]> 
-	{
-		if (this.blacklistedPluginIDs.length > 0) return this.blacklistedPluginIDs;
-		this.blacklistedPluginIDs = pluginStylesBlacklist.replaceAll("\r", "").split("\n");
-
-		return this.blacklistedPluginIDs;
-	}
-
 	constructor(plugin: Plugin) {
 		super(app, plugin);
 		SettingsPage.plugin = plugin;
 	}
 
-	getPluginIDs(): string[]
-	{
-		/*@ts-ignore*/
-		const pluginsArray: string[] = Array.from(app.plugins.enabledPlugins.values()) as string[];
-		for (let i = 0; i < pluginsArray.length; i++)
-		{
-			/*@ts-ignore*/
-			if (app.plugins.manifests[pluginsArray[i]] == undefined)
-			{
-				pluginsArray.splice(i, 1);
-				i--;
-			}
-		}
-
-		return pluginsArray;
-	}
-
-	public static nameStylesheet(stylesheet: string): string {
-		const words: string[] = [];
-		const commentWords: string[] = [];
-		const commonWords = new Set([
-			'svelte', 'wrapper', 'container', 'item', 'button', 'input', 'text', 'style',
-			'color', 'background', 'margin', 'padding', 'width', 'height', 'display', 'position', 'font', "cm", "pcr", "app", "workspace"
-		]);
-
-		const root = safeParser(stylesheet);
-
-		// Extract words from top comments
-		root.nodes.forEach(node => {
-			if (node.type === 'comment') {
-				const commentText = node.text.toLowerCase();
-				const extractedWords = commentText.match(/\b\w+\b/g) || [];
-				commentWords.push(...extractedWords);
-			} else {
-				// Stop processing after encountering the first non-comment node
-				return false;
-			}
-		});
-
-		// Extract words from selectors
-		root.walkRules((rule) => {
-			const selectors = rule.selector.match(/[.#][\w-]+/g) || [];
-			selectors.forEach(selector => {
-				const parts = selector.slice(1).split('-');
-				words.push(...parts);
-			});
-		});
-
-		// Filter and count occurrences
-		const wordCounts = words
-			.filter(word => word.length > 1 && !commonWords.has(word.toLowerCase()))
-			.reduce((acc, word) => {
-				acc[word.toLowerCase()] = (acc[word.toLowerCase()] || 0) + 1;
-				return acc;
-			}, {} as Record<string, number>);
-
-		// Add comment words that appear in styles
-		commentWords.forEach(word => {
-			if (wordCounts.hasOwnProperty(word)) {
-				wordCounts[word] += 1;
-			}
-		});
-
-		// Sort words by frequency
-		const sortedWords = Object.entries(wordCounts)
-			.sort((a, b) => b[1] - a[1]);
-
-		if (sortedWords.length === 0) {
-			return "generic-stylesheet";
-		}
-
-		if (sortedWords.length > 1 && sortedWords[0][1] === sortedWords[1][1]) {
-			return `${sortedWords[0][0]}-${sortedWords[1][0]}-stylesheet`;
-		} else {
-			return `${sortedWords[0][0]}-stylesheet`;
-		}
-	}
-
-	public static nameStyles() {
-		// name all stylesheets and add the name as their id
-		const stylesheets = document.styleSheets;
-		for (let i = 1; i < stylesheets.length; i++) {
-			// @ts-ignore
-			const styleID = stylesheets[i].ownerNode?.id;
-
-			if (!styleID || styleID == "")
-			{
-				// first check if it has any non-statandard attributes that can be used to uniquely identify it
-                // @ts-ignore
-                const attributes = stylesheets[i].ownerNode?.attributes;
-                if (attributes) {
-                    // First try to find most meaningful data attribute
-                    const priorityPrefixes = ['source-plugin', 'type', 'name', 'source'];
-                    let foundPriorityAttr = false;
-                    
-                    for (const prefix of priorityPrefixes) {
-                        const attr = Array.from(attributes).find((a: Attr) => a.name === `data-${prefix}`);
-                        if (attr) {
-                            // @ts-ignore
-                            stylesheets[i].ownerNode.id = `${prefix}-${attr.value}-stylesheet`;
-                            foundPriorityAttr = true;
-                            break;
-                        }
-                    }
-
-                    if (!foundPriorityAttr) {
-                        // Collect all data attributes
-                        const dataAttrs = Array.from(attributes)
-                            .filter((attr: Attr) => attr.name.startsWith('data-'))
-                            .map((attr: Attr) => ({
-                                name: attr.name.substring(5),
-                                value: attr.value
-                            }));
-                        
-                        if (dataAttrs.length > 0) {
-                            // Combine all data attributes into ID
-                            const id = dataAttrs
-                                .map(attr => `${attr.name}${attr.value ? `-${attr.value}` : ''}`)
-                                .join('-');
-                            // @ts-ignore
-                            stylesheets[i].ownerNode.id = `${id}-stylesheet`;
-                            continue;
-                        }
-                    } else {
-                        continue;
-                    }
-                }
-
-                // Check for other unique attributes if no data- attributes found
-                let hasUniqueAttr = false;
-                if (attributes) {
-                    for (const attr of attributes) {
-                        if (!["type", "id"].contains(attr.name) && !attr.name.startsWith("data-")) {
-                            // check if the attribute is unique
-                            const elements = document.querySelectorAll(`[${attr.name}]`);
-                            if (elements.length == 1) {
-                                // @ts-ignore
-                                stylesheets[i].ownerNode.id = `${attr.name}-stylesheet`;
-                                hasUniqueAttr = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if (hasUniqueAttr) continue;
-
-				if (!stylesheets[i].ownerNode?.textContent?.contains("svelte-")) 
-					continue;
-
-				// @ts-ignore
-				stylesheets[i].ownerNode.id = this.nameStylesheet(stylesheets[i].ownerNode.textContent);
-			}
-		}
-	}
-
-	getStyleTagIds(): string[]
-	{
-		SettingsPage.nameStyles();
-		let ids: string[] = [];
-		document.querySelectorAll('style').forEach((style) => {
-			if (style.id) ids.push(style.id);
-		});
-		return ids;
-	}
-
-	getInstalledThemesRecord(): Record<string, string>
-	{
-		// @ts-ignore
-		const themes = Object.values(app.customCss.themes) as { name: string, author: string }[];
-
-		const themeRecord: Record<string, string> = 
-		{
-			// @ts-ignore
-			"Current": "obsidian-current-theme",
-			"Default": "Default",
-		};
-
-		for (const theme of themes)
-		{
-			themeRecord[theme.name] = theme.name;
-		}
-
-		return themeRecord;
-	}
 	static deepAssign(truth: any, source: any)
 	{
 		if (!source) return;

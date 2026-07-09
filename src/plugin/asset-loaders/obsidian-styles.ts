@@ -1,15 +1,16 @@
-import obsidianStyleOverrides from "src/assets/obsidian-styles.txt.css";
+import frozenObsidianStyles from "src/assets/frozen-obsidian.txt.css";
 import { AssetLoader } from "./base-asset.js";
 import { AssetType, InlinePolicy, LoadMethod, Mutability } from "./asset-types.js";
-import { AssetHandler } from "./asset-handler.js";
 
 export class ObsidianStyles extends AssetLoader
 {
     constructor()
     {
-        super("obsidian.css", "", null, AssetType.Style, InlinePolicy.AutoHead, true, Mutability.Dynamic, LoadMethod.Default, 10);
+        // minify=false: frozen CSS is large and already filtered; avoid minifyCSS edge cases.
+        super("obsidian.css", frozenObsidianStyles, null, AssetType.Style, InlinePolicy.AutoHead, false, Mutability.Static, LoadMethod.Default, 10);
     }
 
+	// Kept for freeze-export-styles.mjs / any remaining callers that filter plugin CSS.
 	static readonly obsidianStyleAlwaysFilter =
 	[
 		"cm-", "cm6", "workspace-", ":root", "CodeMirror", "xfa", "modal", "@-webkit", "leaf", "plugins", "-split", "empty-state", "search-result-", "mobile", "tablet", "phone", "linux", "macos", "mod-windows", "is-frameless", 
@@ -27,24 +28,4 @@ export class ObsidianStyles extends AssetLoader
 	"is-hidden-frameless", "obsidian-app", "show-view-header",
 	"is-maximized", "is-translucent", "community", "Layer"];
 	static readonly stylesKeep = ["tree", "scrollbar", "input[type", "table", "markdown-rendered", "css-settings-manager", "inline-embed", "background", "token", "-plugin-"];
-    
-    override async load()
-    {
-        this.data = "";
-
-        let appSheet = document.styleSheets[1];
-        const stylesheets = Array.from(document.styleSheets);
-        for (const element of stylesheets)
-        {
-            if (element.href && element.href?.includes("app.css"))
-            {
-                appSheet = element;
-                break;
-            }
-        }
-
-		this.data = await AssetHandler.filterStyleRules(appSheet, ObsidianStyles.obsidianStyleAlwaysFilter, ObsidianStyles.obsidianStylesFilter, ObsidianStyles.stylesKeep);
-        this.data += obsidianStyleOverrides;
-        await super.load();
-    }
 }

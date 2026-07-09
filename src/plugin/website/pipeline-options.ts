@@ -158,10 +158,10 @@ export class ExportPipelineOptions extends MarkdownRendererOptions
 	offlineResources: boolean = false;
 
 	/**
-	 * The name of the theme to use for the export.
-	 * If the theme does not exist, the default theme will be used.
+	 * Metadata label for the frozen export theme (Prism). Style loading no longer
+	 * reads this value — CSS is bundled as Static assets.
 	*/
-	themeName: string =  "";
+	themeName: string =  "Prism";
 
 	/**
 	 * Make all paths and file names web style (lowercase, no spaces).
@@ -237,6 +237,14 @@ export class ExportPipelineOptions extends MarkdownRendererOptions
 				(this as any)[propertyName] = Object.assign(freshInstance, propertyValue);
 			}
 		}
+
+		// Frozen export styles: ignore any previously saved style-selection settings.
+		this.themeName = "Prism";
+		this.includePluginCss = [];
+		this.includeStyleCssIds = [];
+		this.themeToggleOptions.enabled = false;
+		this.themeToggleOptions.unavailable = true;
+		this.themeToggleOptions.hideSettingsButton = true;
 	}
 }
 

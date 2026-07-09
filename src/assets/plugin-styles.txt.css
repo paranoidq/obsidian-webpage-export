@@ -1075,7 +1075,7 @@ body.image-lightbox-open {
 	position: fixed;
 	inset: 0;
 	z-index: 10000;
-	background: rgba(0, 0, 0, 0.6);
+	background: #ffffff;
 }
 
 .image-lightbox.hide {
@@ -1112,12 +1112,13 @@ body.image-lightbox-open {
 	object-fit: contain;
 	border-radius: var(--radius-l, 8px);
 	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+	background: #ffffff;
 	user-select: none;
 	pointer-events: none;
 }
 
 .image-lightbox-svg {
-	background: var(--background-primary, #ffffff);
+	background: #ffffff;
 }
 
 .image-lightbox-toolbar {
