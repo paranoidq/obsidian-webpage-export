@@ -47,7 +47,7 @@ export class FetchBuffer extends AssetLoader
 				// first ping with a fetch "no-cors" request to see if the server is available
 				const testResp = await Utils.urlAvailable(this.url);
 
-				if (testResp.type == "opaque")
+				if (testResp?.type == "opaque")
 					res = await requestUrl(this.url);
 				else
 				{

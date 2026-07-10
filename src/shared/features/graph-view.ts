@@ -73,5 +73,6 @@ export class GraphViewOptions extends InsertedFeatureOptionsWithTitle {
 			"#right-sidebar-content",
 			RelationType.Start
 		);
+		this.setAvailable(false);
 	}
 }

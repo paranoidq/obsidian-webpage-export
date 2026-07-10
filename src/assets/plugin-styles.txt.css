@@ -13,6 +13,9 @@ body {
 	margin: 0px 4px 0px 0px;
 	display: flex;
 	align-self: center;
+	font-size: 1em;
+	line-height: 1;
+	overflow: hidden;
 }
 
 .tree-icon :is(svg, img) {
@@ -1059,9 +1062,18 @@ body.image-lightbox-open {
 	overflow: hidden;
 }
 
-.image-viewer-enabled .markdown-preview-sizer img:not(.emoji),
-.image-viewer-enabled :is(.internal-embed, .markdown-embed, .media-embed, .excalidraw-svg, .excalidraw-plugin) img:not(.emoji) {
+.image-viewer-enabled .markdown-preview-sizer img:not(.emoji):not(.is-broken-image),
+.image-viewer-enabled :is(.internal-embed, .markdown-embed, .media-embed, .excalidraw-svg, .excalidraw-plugin) img:not(.emoji):not(.is-broken-image) {
 	cursor: zoom-in;
+}
+
+img.is-broken-image {
+	display: inline-block;
+	max-width: 100%;
+	height: auto;
+	opacity: 0.9;
+	cursor: default !important;
+	pointer-events: none;
 }
 
 .image-viewer-enabled .excalidraw-svg > svg,

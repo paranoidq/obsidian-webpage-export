@@ -1019,7 +1019,7 @@ export namespace _MarkdownRendererInternal {
 					let emojiMatch = iconProperty.trim().match(/\p{Emoji}/u);
 					let isEmoji = emojiMatch && emojiMatch.length == 1 && emojiMatch.index == 0;
 
-					if (isEmoji) iconOutput = iconProperty;
+					if (isEmoji) iconOutput = await IconHandler.getIcon(iconProperty);
 					else iconOutput = iconIdentifier + iconProperty + iconIdentifier;
 
 					parsedAsIconize = true;

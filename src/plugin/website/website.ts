@@ -187,11 +187,10 @@ export class Website
 				if (!isConvertable || (MarkdownRendererAPI.viewableMediaExtensions.contains(file.extension)))
 				{
 					const data = Buffer.from(await app.vault.readBinary(file));
-					const path = new Path(file.path);
-					path.setWorkingDirectory((this.destination ?? Path.vaultPath.joinString("Web Export")).path);
-					path.slugify(this.exportOptions.slugifyPaths);
+					const path = this.getTargetPathForFile(file);
 					let attachment = new Attachment(data, path, file, this.exportOptions);
-					attachment.showInTree = true;
+					// Cascade/folder exports: only pages belong in the nav tree; media embeds inline, other files go to resources/
+					attachment.showInTree = this.cascadeContext ? false : true;
 					await this.index.addFile(attachment);
 				}
 
@@ -316,24 +315,32 @@ export class Website
 
 			ExportLog.progress(1, "Building Webpages", webpage.source.path);
 
-			const rendered = await webpage.renderDocument();
-			if (!rendered) continue;
-			await Utils.delay(0);
-			
-			const attachments = await webpage.getAttachments();
-			await Utils.delay(0);
-			this.index.addFiles(attachments);
-			await Utils.delay(0);
-			const built = await webpage.build();
-			await Utils.delay(0);
-			if (built) await this.index.addFile(webpage, this.cascadeContext != undefined);
-			else await this.index.removeFile(webpage);
-			// save the file and then dispose of the webpage
-			if (!this.exportOptions.combineAsSingleFile)
-				await webpage.download();
-			
-			if (this.exportOptions.autoDisposeWebpages)
-				webpage.dispose();
+			try
+			{
+				const rendered = await webpage.renderDocument();
+				if (!rendered) continue;
+				await Utils.delay(0);
+				
+				const attachments = await webpage.getAttachments();
+				await Utils.delay(0);
+				this.index.addFiles(attachments);
+				await Utils.delay(0);
+				const built = await webpage.build();
+				await Utils.delay(0);
+				if (built) await this.index.addFile(webpage, this.cascadeContext != undefined);
+				else await this.index.removeFile(webpage);
+				// save the file and then dispose of the webpage
+				if (!this.exportOptions.combineAsSingleFile)
+					await webpage.download();
+				
+				if (this.exportOptions.autoDisposeWebpages)
+					webpage.dispose();
+			}
+			catch (error)
+			{
+				ExportLog.error(error, "Problem building webpage: " + webpage.source.path);
+				try { webpage.dispose(); } catch { /* ignore */ }
+			}
 
 			progress += 1;
 

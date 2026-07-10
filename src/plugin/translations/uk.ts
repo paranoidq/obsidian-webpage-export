@@ -18,7 +18,6 @@ export const language: i18n =
 	},
 	updateAvailable: "Доступне оновлення",
 	exportAsHTML: "Експортувати як HTML",
-	exportFolderAsHTML: "Експортувати папку як HTML",
 	exportFileWithLinkedAsHTML: "Експортувати файл і пов'язані файли як HTML",
 	exportModal:
 	{

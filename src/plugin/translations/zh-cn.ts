@@ -18,7 +18,6 @@ export const language: i18n =
 	},
 	updateAvailable: "有更新可用",
 	exportAsHTML: "导出为HTML",
-	exportFolderAsHTML: "将文件夹导出为html",
 	exportFileWithLinkedAsHTML: "将文件和关联文件导出为html",
 	exportModal:
 	{

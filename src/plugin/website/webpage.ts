@@ -11,6 +11,7 @@ import { Settings } from "src/plugin/settings/settings";
 import { AssetHandler } from "src/plugin/asset-loaders/asset-handler";
 import { Shared } from "src/shared/shared";
 import { moment } from "obsidian";
+import { Utils } from "src/plugin/utils/utils";
 
 export class WebpageOutputData
 {
@@ -459,10 +460,17 @@ export class Webpage extends Attachment
 	private get coverImageURL(): string | undefined
 	{
 		if (!this.viewElement) return undefined;
-		let mediaPathStr = this.viewElement.querySelector("img")?.getAttribute("src") ?? "";
-		if (mediaPathStr.startsWith("data:")) return undefined;
-		const hasMedia = mediaPathStr.length > 0;
-		if (!hasMedia) return undefined;
+		const images = Array.from(this.viewElement.querySelectorAll("img")) as HTMLImageElement[];
+		let mediaPathStr = "";
+		for (const img of images)
+		{
+			if (img.classList.contains("is-broken-image")) continue;
+			const src = img.getAttribute("src") ?? "";
+			if (!src || src.startsWith("data:")) continue;
+			mediaPathStr = src;
+			break;
+		}
+		if (!mediaPathStr) return undefined;
 
 		if (!mediaPathStr.startsWith("http") && !mediaPathStr.startsWith("data:"))
 		{
@@ -533,7 +541,16 @@ export class Webpage extends Attachment
 	
 
 		if (this.exportOptions.inlineMedia) 
-			await this.inlineMedia();
+		{
+			try
+			{
+				await this.inlineMedia();
+			}
+			catch (error)
+			{
+				ExportLog.warning(error, `Problem inlining media for ${this.source.path}; continuing without broken embeds`);
+			}
+		}
 
 		if (this.exportOptions.addHeadTag) 
 			await this.addHead();
@@ -637,22 +654,30 @@ export class Webpage extends Attachment
 		{
 			if ((!src.startsWith("app://") && /\w+:(\/\/|\\\\)/.exec(src)) || // link is a URL except for app://
 				src.startsWith("data:") || // link is a data URL
-				src.startsWith("blob:")) // temporary browser object URLs are handled by inlineMedia
+				src.startsWith("blob:") || // temporary browser object URLs are handled by inlineMedia
+				Utils.isExternalUrl(src))
 			continue;
 
-			const sourcePath = this.website.getFilePathFromSrc(src, this.source.path).pathname;
-			let attachment = this.attachments.find((attachment) => attachment.sourcePath == sourcePath);
-			attachment ??= this.website.index.getFile(sourcePath);
-			attachment ??= await this.website.createAttachmentFromSrc(src, this.source);
-			
-			if (!sourcePath || !attachment)
+			try
 			{
-				ExportLog.log("Attachment source not found: " + src);
-				continue;
-			}
+				const sourcePath = this.website.getFilePathFromSrc(src, this.source.path).pathname;
+				let attachment = this.attachments.find((attachment) => attachment.sourcePath == sourcePath);
+				attachment ??= this.website.index.getFile(sourcePath);
+				attachment ??= await this.website.createAttachmentFromSrc(src, this.source);
+				
+				if (!sourcePath || !attachment)
+				{
+					ExportLog.log("Attachment source not found: " + src);
+					continue;
+				}
 
-			if (!this.attachments.includes(attachment)) 
-				this.attachments.push(attachment);
+				if (!this.attachments.includes(attachment)) 
+					this.attachments.push(attachment);
+			}
+			catch (error)
+			{
+				ExportLog.warning(error, `Skipping attachment that failed to load: ${src}`);
+			}
 		}
 
 		return this.attachments;
@@ -791,40 +816,91 @@ export class Webpage extends Attachment
 		const elements = Array.from(this.pageDocument.querySelectorAll("[src]:not(head [src])"))
 		for (const mediaEl of elements)
 		{
-			const rawSrc = mediaEl.getAttribute("src") ?? "";
-			if (rawSrc.startsWith("blob:"))
+			try
 			{
-				const response = await fetch(rawSrc);
-				if (!response.ok) continue;
+				const rawSrc = mediaEl.getAttribute("src") ?? "";
+				if (!rawSrc) continue;
 
-				const blob = await response.blob();
-				const base64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
-				const type = blob.type || "application/octet-stream";
-				mediaEl.setAttribute("src", `data:${type};base64,${base64}`);
-				continue;
+				if (rawSrc.startsWith("blob:"))
+				{
+					try
+					{
+						const response = await fetch(rawSrc);
+						if (!response.ok)
+						{
+							this.markBrokenMediaElement(mediaEl, rawSrc);
+							continue;
+						}
+
+						const blob = await response.blob();
+						const base64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
+						const type = blob.type || "application/octet-stream";
+						mediaEl.setAttribute("src", `data:${type};base64,${base64}`);
+					}
+					catch
+					{
+						this.markBrokenMediaElement(mediaEl, rawSrc);
+					}
+					continue;
+				}
+
+				// External http(s) embeds: inline when reachable; otherwise show broken-image placeholder
+				if (Utils.isExternalUrl(rawSrc))
+				{
+					const dataUri = await Utils.fetchAsDataUri(rawSrc);
+					if (!dataUri)
+					{
+						this.markBrokenMediaElement(mediaEl, rawSrc);
+						continue;
+					}
+					mediaEl.setAttribute("src", dataUri);
+					continue;
+				}
+
+				if (rawSrc.startsWith("data:")) continue;
+
+				const filePath = this.website.getFilePathFromSrc(rawSrc, this.source.path);
+				if (filePath.isEmpty || filePath.isDirectory || filePath.isAbsolute) continue;
+
+				const base64 = await filePath.readAsString("base64");
+				if (!base64)
+				{
+					this.markBrokenMediaElement(mediaEl, rawSrc);
+					continue;
+				}
+
+				let ext = filePath.extensionName;
+
+				//@ts-ignore
+				const registryType = app.viewRegistry.typeByExtension[ext];
+				const imageExtensions = new Set([
+					"png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "svg", "avif", "apng",
+				]);
+				const type = imageExtensions.has(ext)
+					? "image"
+					: (registryType ?? "application");
+
+				if (ext === "svg") ext += "+xml";
+				
+				mediaEl.setAttribute("src", `data:${type}/${ext};base64,${base64}`);
 			}
-
-			const filePath = this.website.getFilePathFromSrc(rawSrc, this.source.path);
-			if (filePath.isEmpty || filePath.isDirectory || filePath.isAbsolute) continue;
-
-			const base64 = await filePath.readAsString("base64");
-			if (!base64) continue;
-
-			let ext = filePath.extensionName;
-
-			//@ts-ignore
-			const registryType = app.viewRegistry.typeByExtension[ext];
-			const imageExtensions = new Set([
-				"png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "svg", "avif", "apng",
-			]);
-			const type = imageExtensions.has(ext)
-				? "image"
-				: (registryType ?? "application");
-
-			if (ext === "svg") ext += "+xml";
-			
-			mediaEl.setAttribute("src", `data:${type}/${ext};base64,${base64}`);
+			catch (error)
+			{
+				const rawSrc = mediaEl.getAttribute("src") ?? "";
+				ExportLog.warning(error, `Using broken-image placeholder for media: ${rawSrc}`);
+				this.markBrokenMediaElement(mediaEl, rawSrc);
+			}
 		};
+	}
+
+	private markBrokenMediaElement(mediaEl: Element, src: string)
+	{
+		ExportLog.warning(`Media URL unreachable, using broken-image placeholder: ${src}`);
+		mediaEl.setAttribute("src", Utils.BROKEN_IMAGE_DATA_URI);
+		mediaEl.setAttribute("data-broken-src", src);
+		mediaEl.setAttribute("alt", mediaEl.getAttribute("alt") || "Broken image");
+		mediaEl.classList.add("is-broken-image");
+		mediaEl.setAttribute("title", `Broken image: ${src}`);
 	}
 
 	public dispose()

@@ -1,4 +1,4 @@
-import { Notice, TFile, TFolder } from "obsidian";
+import { Notice, TFile } from "obsidian";
 import { Path } from "src/plugin/utils/path";
 import { Settings } from "src/plugin/settings/settings";
 import { Utils } from "src/plugin/utils/utils";
@@ -76,6 +76,9 @@ export class HTMLExporter
 	{
 		MarkdownRendererAPI.beginBatch();
 		let website = undefined;
+		const previousFilesToExport = [...Settings.exportOptions.filesToExport];
+		// Align canvas/embed inlining with the actual pages in this export batch
+		Settings.exportOptions.filesToExport = files.map((file) => file.path);
 		try
 		{
 			website = await (await new Website(destination).load(files, exportRoot, cascadeContext)).build();
@@ -122,19 +125,14 @@ export class HTMLExporter
 			new Notice("❌ Export Failed: " + e, 5000);
 			ExportLog.error(e, "Export Failed", true);
 		}
+		finally
+		{
+			Settings.exportOptions.filesToExport = previousFilesToExport;
+		}
 
 		MarkdownRendererAPI.endBatch();
 
 		return website;
-	}
-
-	public static async exportFolder(folder: TFolder, rootExportPath: Path, saveFiles: boolean, clearDirectory: boolean) : Promise<Website | undefined>
-	{
-		const folderPath = new Path(folder.path);
-		const allFiles = app.vault.getFiles();
-		const files = allFiles.filter((file) => new Path(file.path).directory.path.startsWith(folderPath.path));
-
-		return await this.exportFiles(files, rootExportPath, saveFiles, clearDirectory);
 	}
 
 	public static async exportVault(rootExportPath: Path, saveFiles: boolean, clearDirectory: boolean) : Promise<Website | undefined>

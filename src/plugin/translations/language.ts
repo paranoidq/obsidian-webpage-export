@@ -23,7 +23,6 @@ export interface i18n
 	},
 	updateAvailable: string;
 	exportAsHTML: string;
-	exportFolderAsHTML: string;
 	exportFileWithLinkedAsHTML: string;
 	exportModal: 
 	{

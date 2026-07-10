@@ -50,7 +50,7 @@ export class Settings
 		Settings.exportOptions.inlineJS = true;
 		Settings.exportOptions.inlineMedia = true;
 		Settings.exportOptions.inlineOther = true;
-		Settings.exportOptions.graphViewOptions.setAvailable(true);
+		Settings.exportOptions.graphViewOptions.setAvailable(false);
 		Settings.exportOptions.fileNavigationOptions.setAvailable(true);
 		Settings.exportOptions.searchOptions.setAvailable(false);
 		Settings.exportOptions.rssOptions.setAvailable(false);
@@ -171,7 +171,6 @@ export class SettingsPage extends PluginSettingTab
 		createFeatureSetting(section, lang.sidebars.title, 			Settings.exportOptions.sidebarOptions,			lang.sidebars.description);
 		createFeatureSetting(section, lang.fileNavigation.title,	Settings.exportOptions.fileNavigationOptions,	lang.fileNavigation.description);
 		createFeatureSetting(section, lang.outline.title,			Settings.exportOptions.outlineOptions,			lang.outline.description);
-		createFeatureSetting(section, lang.graphView.title, 		Settings.exportOptions.graphViewOptions,		lang.graphView.description);
 		createFeatureSetting(section, lang.search.title,			Settings.exportOptions.searchOptions,			lang.search.description);
 		createFeatureSetting(section, lang.linkPreview.title,		Settings.exportOptions.linkPreviewOptions,		lang.linkPreview.description);
 		createFeatureSetting(section, lang.themeToggle.title,		Settings.exportOptions.themeToggleOptions,		lang.themeToggle.description);

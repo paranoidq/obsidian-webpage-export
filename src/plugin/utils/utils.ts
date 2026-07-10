@@ -25,16 +25,68 @@ export namespace Utils
 		return false;
 	}
 
-	export async function  urlAvailable(url: RequestInfo | URL) 
+	export async function urlAvailable(url: RequestInfo | URL): Promise<Response | undefined>
 	{
 		const controller = new AbortController();
 		const id = setTimeout(() => controller.abort(), 4000);
-		
-		const response = await fetch(url, {signal: controller.signal, mode: "no-cors"});
-		clearTimeout(id);
-	  
-		return response;
+
+		try
+		{
+			const response = await fetch(url, {signal: controller.signal, mode: "no-cors"});
+			return response;
+		}
+		catch
+		{
+			return undefined;
+		}
+		finally
+		{
+			clearTimeout(id);
+		}
 	}
+
+	/** Fetch a remote URL as a data URI. Returns undefined on any failure. */
+	export async function fetchAsDataUri(url: string, timeoutMs: number = 3000): Promise<string | undefined>
+	{
+		const controller = new AbortController();
+		const id = setTimeout(() => controller.abort(), timeoutMs);
+
+		try
+		{
+			const response = await fetch(url, { signal: controller.signal });
+			if (!response.ok) return undefined;
+
+			const blob = await response.blob();
+			const buffer = Buffer.from(await blob.arrayBuffer());
+			const type = blob.type || "application/octet-stream";
+			return `data:${type};base64,${buffer.toString("base64")}`;
+		}
+		catch
+		{
+			return undefined;
+		}
+		finally
+		{
+			clearTimeout(id);
+		}
+	}
+
+	export function isExternalUrl(url: string): boolean
+	{
+		return /^https?:\/\//i.test(url.trim());
+	}
+
+	/** Inline SVG used when a remote/local media URL cannot be loaded. */
+	export const BROKEN_IMAGE_DATA_URI =
+		"data:image/svg+xml," + encodeURIComponent(
+			`<svg xmlns="http://www.w3.org/2000/svg" width="160" height="120" viewBox="0 0 160 120">` +
+			`<rect width="160" height="120" fill="#f2f3f5" stroke="#c7c7c7" stroke-width="2"/>` +
+			`<path d="M28 86 L58 48 L78 68 L98 42 L132 86 Z" fill="none" stroke="#9aa0a6" stroke-width="3" stroke-linejoin="round"/>` +
+			`<circle cx="56" cy="40" r="8" fill="none" stroke="#9aa0a6" stroke-width="3"/>` +
+			`<line x1="36" y1="36" x2="124" y2="92" stroke="#d94848" stroke-width="4" stroke-linecap="round"/>` +
+			`<text x="80" y="110" text-anchor="middle" fill="#868e96" font-size="11" font-family="sans-serif">Broken image</text>` +
+			`</svg>`
+		);
 
 	export function sampleCSSColorHex(variable: string, testParentEl: HTMLElement): { a: number, hex: string }
 	{

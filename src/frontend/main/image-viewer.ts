@@ -117,6 +117,7 @@ export class ImageViewer {
 
 	private isEligibleImage(img: HTMLImageElement): boolean {
 		if (img.classList.contains("emoji")) return false;
+		if (img.classList.contains("is-broken-image")) return false;
 		if (!this.isInDocumentContent(img)) return false;
 		if (!img.getAttribute("src")) return false;
 		return true;

@@ -11,6 +11,7 @@ import { _MarkdownRendererInternal, ExportLog, MarkdownRendererAPI } from 'src/p
 import { DataviewRenderer } from './render-api/dataview-renderer';
 import { Website } from './website/website';
 import { i18n } from './translations/language';
+import { getFolderNote } from './utils/folder-notes';
 
 
 
@@ -117,23 +118,19 @@ export default class HTMLExportPlugin extends Plugin {
 		this.registerEvent(
 			this.app.workspace.on("file-menu", (menu, file) => {
 				if (file instanceof TFolder) {
+					const folderNote = getFolderNote(file);
+					if (!folderNote) return;
+
 					menu.addItem((item) => {
-						item.setTitle(i18n.exportFolderAsHTML)
-							.setIcon("download")
+						item.setTitle(i18n.exportFileWithLinkedAsHTML)
+							.setIcon("network")
 							.setSection("export")
 							.onClick(() => {
 								ExportModal.title =
 									i18n.exportModal.exportAsTitle.format(
-										file.name
+										folderNote.name
 									);
-								const filesInFolder = this.app.vault
-									.getFiles()
-									.filter((f) =>
-										new Path(
-											f.path
-										).directory.path.startsWith(file.path)
-									);
-								HTMLExporter.export(false, filesInFolder);
+								HTMLExporter.exportCascadeFromEntry(folderNote, false);
 							});
 					});
 				} else if (file instanceof TFile) {
