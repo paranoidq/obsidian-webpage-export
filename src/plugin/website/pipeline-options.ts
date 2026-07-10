@@ -125,32 +125,32 @@ export class ExportPipelineOptions extends MarkdownRendererOptions
 	/**
 	 * Inline / embed media items (images, video, audio) directly into the HTML.
 	 */
-	inlineMedia: boolean = false;
+	inlineMedia: boolean = true;
 
 	/**
 	 * Inline / embed the css styles directly into the HTML.
 	 */
-	inlineCSS: boolean = false;
+	inlineCSS: boolean = true;
 
 	/**
 	 * Inline / embed the javascript directly into the HTML.
 	 */
-	inlineJS: boolean = false;
+	inlineJS: boolean = true;
 
 	/**
 	 * Inline / embed fonts directly into the HTML.
 	 */
-	inlineFonts: boolean = false;
+	inlineFonts: boolean = true;
 
 	/**
 	 * Inline / embed other files directly into the HTML.
 	 */
-	inlineOther: boolean = false;
+	inlineOther: boolean = true;
 
 	/**
 	 * Combine the whole export into a single .html file.
 	 */
-	combineAsSingleFile: boolean = false;
+	combineAsSingleFile: boolean = true;
 
 	/**
 	 * Do not leave any online urls, download them and embed them into the HTML.

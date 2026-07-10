@@ -18,6 +18,8 @@ export const language: i18n =
 	},
 	updateAvailable: "Atualização disponível",
 	exportAsHTML: "Exportar como HTML",
+	exportFolderAsHTML: "Exportar pasta como HTML",
+	exportFileWithLinkedAsHTML: "Exportar arquivo e arquivos vinculados como HTML",
 	exportModal: 
 	{
 		title: "Exportar para HTML",
@@ -39,12 +41,6 @@ export const language: i18n =
 			fileCount: "Quantidade de arquivos",
 			lastExported: "Última exportação",
 		},
-		exportMode: {
-			title: "Modo de Exportação",
-			online: "Use este modo se seus arquivos forem acessados online (via servidor http).",
-			local: "Este modo exporta um único arquivo HTML (grande) contendo toda a exportação. Use apenas para compartilhamento offline.",
-			rawDocuments: "Exportar documentos HTML simples com estilo e scripts básicos, sem recursos adicionais.",
-		},
 		purgeExport:
 		{
 			description: "Limpe o cache do site para reexportar todos os arquivos ou exclua o site com todos os seus arquivos.",
@@ -58,7 +54,7 @@ export const language: i18n =
 		title: "Configurações de Exportação HTML",
 		support: "Apoie o desenvolvimento contínuo deste plugin.",
 		debug: "Copiar informações de debug para a área de transferência",
-		unavailableSetting: "⚠️ Este recurso não está disponível no modo {0}.",
+		unavailableSetting: "⚠️ Este recurso não está disponível na exportação Local Website.",
 		pageFeatures: {
 			title: "Recursos da Página",
 			description: "Controle diversos recursos da página exportada."

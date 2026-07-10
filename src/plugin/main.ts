@@ -116,18 +116,16 @@ export default class HTMLExportPlugin extends Plugin {
 
 		this.registerEvent(
 			this.app.workspace.on("file-menu", (menu, file) => {
-				menu.addItem((item) => {
-					item.setTitle(i18n.exportAsHTML)
-						.setIcon("download")
-						.setSection("export")
-						.onClick(() => {
-							ExportModal.title =
-								i18n.exportModal.exportAsTitle.format(
-									file.name
-								);
-							if (file instanceof TFile) {
-								HTMLExporter.export(false, [file]);
-							} else if (file instanceof TFolder) {
+				if (file instanceof TFolder) {
+					menu.addItem((item) => {
+						item.setTitle(i18n.exportFolderAsHTML)
+							.setIcon("download")
+							.setSection("export")
+							.onClick(() => {
+								ExportModal.title =
+									i18n.exportModal.exportAsTitle.format(
+										file.name
+									);
 								const filesInFolder = this.app.vault
 									.getFiles()
 									.filter((f) =>
@@ -136,24 +134,11 @@ export default class HTMLExportPlugin extends Plugin {
 										).directory.path.startsWith(file.path)
 									);
 								HTMLExporter.export(false, filesInFolder);
-							} else {
-								ExportLog.error(
-									"File is not a TFile or TFolder! Invalid type: " +
-										typeof file +
-										""
-								);
-								new Notice(
-									"File is not a File or Folder! Invalid type: " +
-										typeof file +
-										"",
-									5000
-								);
-							}
-						});
-				});
-				if (file instanceof TFile) {
+							});
+					});
+				} else if (file instanceof TFile) {
 					menu.addItem((item) => {
-						item.setTitle("Export as HTML with linked files")
+						item.setTitle(i18n.exportFileWithLinkedAsHTML)
 							.setIcon("network")
 							.setSection("export")
 							.onClick(() => {

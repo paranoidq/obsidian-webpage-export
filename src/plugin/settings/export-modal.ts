@@ -1,7 +1,7 @@
 import { ButtonComponent, Modal, Setting, TFile } from 'obsidian';
 import { Utils } from 'src/plugin/utils/utils';
 import HTMLExportPlugin from 'src/plugin/main';
-import { ExportPreset, Settings, SettingsPage } from './settings';
+import { Settings, SettingsPage } from './settings';
 import { FilePickerTree } from 'src/plugin/features/file-picker';
 import { Path } from 'src/plugin/utils/path';
 import { FileDialogs } from 'src/plugin/utils/file-dialogs';
@@ -148,47 +148,6 @@ export class ExportModal extends Modal
 			width: fit-content;
 			white-space: pre-wrap;`)
 		}
-
-		const modeDescriptions = 
-		{
-			"online": lang.exportMode.online,
-			"local": lang.exportMode.local,
-			"raw-documents":  lang.exportMode.rawDocuments
-		}
-
-		const exportModeSetting = new Setting(contentEl)
-			.setName(lang.exportMode.title)
-			// @ts-ignore
-			.setDesc(modeDescriptions[Settings.exportPreset])
-			.setHeading()
-			.addDropdown((dropdown) => dropdown
-				.addOption('online', 'Online Website')
-				.addOption('local', 'Local Website')
-				.addOption('raw-documents', 'Raw HTML Documents')
-				.setValue(["online", "local", "raw-documents"].contains(Settings.exportPreset) ? Settings.exportPreset : 'website')
-				.onChange(async (value) =>
-				{
-					Settings.exportPreset = value as ExportPreset;
-
-					switch (value) {
-						case 'online':
-							await Settings.onlinePreset();
-							break;
-						case 'local':
-							await Settings.localPreset();
-							break;
-						case 'raw-documents':
-							await Settings.rawDocumentsPreset();
-							break;
-					}
-
-					this.open();
-				}
-				));
-		exportModeSetting.descEl.style.whiteSpace = "pre-wrap";
-		exportModeSetting.settingEl.style.paddingRight = "1em";
-
-		
 
 		// add purge export button
 		new Setting(contentEl)

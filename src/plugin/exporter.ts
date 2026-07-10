@@ -1,11 +1,10 @@
 import { Notice, TFile, TFolder } from "obsidian";
 import { Path } from "src/plugin/utils/path";
-import { ExportPreset, Settings, SettingsPage } from "src/plugin/settings/settings";
+import { Settings } from "src/plugin/settings/settings";
 import { Utils } from "src/plugin/utils/utils";
 import { Website } from "src/plugin/website/website";
 import { ExportLog, MarkdownRendererAPI } from "src/plugin/render-api/render-api";
 import { ExportInfo, ExportModal } from "src/plugin/settings/export-modal";
-import { Webpage } from "./website/webpage";
 import { CascadeExportContext, CascadeExportResolver } from "./cascade-export-resolver";
 
 export class HTMLExporter
@@ -113,23 +112,9 @@ export class HTMLExporter
 			
 			if (saveFiles) 
 			{
-				if (Settings.exportOptions.combineAsSingleFile)
-				{
-					await website.saveAsCombinedHTML();
-					const resources = website.getCascadeResourceDownloads();
-					if (resources.length) await Utils.downloadAttachments(resources);
-				}
-				else
-				{
-					await Utils.downloadAttachments(website.index.newFiles.filter((f) => !(f instanceof Webpage)));
-					await Utils.downloadAttachments(website.index.updatedFiles.filter((f) => !(f instanceof Webpage)));
-
-					if (Settings.exportPreset != ExportPreset.RawDocuments)
-					{
-						await Utils.downloadAttachments([website.index.websiteDataAttachment()]);
-						await Utils.downloadAttachments([website.index.indexDataAttachment()]);
-					}
-				}
+				await website.saveAsCombinedHTML();
+				const resources = website.getCascadeResourceDownloads();
+				if (resources.length) await Utils.downloadAttachments(resources);
 			}
 		}
 		catch (e)

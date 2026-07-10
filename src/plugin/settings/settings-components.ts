@@ -1,5 +1,5 @@
 import { getIcon, Modal, Setting, TextComponent } from "obsidian";
-import { Settings, SettingsPage } from "./settings";
+import { SettingsPage } from "./settings";
 import { Path } from "src/plugin/utils/path";
 import { FileDialogs } from "src/plugin/utils/file-dialogs";
 import { FeatureOptions, FeatureRelation, FeatureSettingInfo } from "src/shared/features/feature-options-base";
@@ -341,13 +341,13 @@ export function createFeatureSetting(container: HTMLElement, name: string, featu
 	let setting = new Setting(container).setName(name).setDesc(desc);
 
 	setting.setDisabled(feature.unavailable);
-	setting.setTooltip(feature.unavailable ? i18n.settings.unavailableSetting.format(Settings.exportPreset) : "", {delay: 0});
+	setting.setTooltip(feature.unavailable ? i18n.settings.unavailableSetting : "", {delay: 0});
 	
 	if (!feature.alwaysEnabled)
 	{
 		setting.addToggle(toggle => 
 		{
-			toggle.setTooltip(feature.unavailable ? i18n.settings.unavailableSetting.format(Settings.exportPreset) : "", {delay: 0});
+			toggle.setTooltip(feature.unavailable ? i18n.settings.unavailableSetting : "", {delay: 0});
 			toggle.setDisabled(feature.unavailable);
 			toggle.setValue(feature.enabled)
 			toggle.onChange((value) => 
@@ -372,7 +372,7 @@ export function createFeatureSetting(container: HTMLElement, name: string, featu
 		}
 		else
 		{
-			button.setTooltip(feature.unavailable ? i18n.settings.unavailableSetting.format(Settings.exportPreset) : "", {delay: 0});
+			button.setTooltip(feature.unavailable ? i18n.settings.unavailableSetting : "", {delay: 0});
 			button.setDisabled(feature.unavailable);
 			button.onClick(() => 
 			{

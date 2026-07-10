@@ -23,6 +23,8 @@ export interface i18n
 	},
 	updateAvailable: string;
 	exportAsHTML: string;
+	exportFolderAsHTML: string;
+	exportFileWithLinkedAsHTML: string;
 	exportModal: 
 	{
 		title: string;
@@ -44,12 +46,6 @@ export interface i18n
 			fileCount: string;
 			lastExported: string;
 		}
-		exportMode: {
-			title: string;
-			online: string;
-			local: string;
-			rawDocuments: string;
-		},
 		purgeExport: {
 			description: string;
 			clearCache: string;

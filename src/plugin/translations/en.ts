@@ -18,6 +18,8 @@ export const language: i18n =
 	},
 	updateAvailable: "Update Available",
 	exportAsHTML: "Export as HTML",
+	exportFolderAsHTML: "Export folder as HTML",
+	exportFileWithLinkedAsHTML: "Export file and linked files as HTML",
 	exportModal: 
 	{
 		title: "Export to HTML",
@@ -39,12 +41,6 @@ export const language: i18n =
 			fileCount: "File count",
 			lastExported: "Last exported",
 		},
-		exportMode: {
-			title: "Export Mode",
-			online: "Use this if your files will be accessed online (via an http server).",
-			local: "This will export a single (large) html file containing the whole export. Only use this for offline sharing.",
-			rawDocuments: "Export plain html documents with simple style and scripts but no additional features.",
-		},
 		purgeExport:
 		{
 			description: "Clear the site cache to re-export all files.",
@@ -58,7 +54,7 @@ export const language: i18n =
 		title: "HTML Export Settings",
 		support: "Support the continued development of this plugin.",
 		debug: "Copy debug info to clipboard",
-		unavailableSetting: "⚠️ This feature is not available in {0} mode.",
+		unavailableSetting: "⚠️ This feature is not available for Local Website export.",
 		pageFeatures: {
 			title: "Page Features",
 			description: "Control various features of the exported page."

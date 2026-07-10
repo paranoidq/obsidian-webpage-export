@@ -18,6 +18,8 @@ export const language: i18n =
 	},
 	updateAvailable: "有更新可用",
 	exportAsHTML: "导出为HTML",
+	exportFolderAsHTML: "将文件夹导出为html",
+	exportFileWithLinkedAsHTML: "将文件和关联文件导出为html",
 	exportModal:
 	{
 		title: "导出为HTML",
@@ -39,12 +41,6 @@ export const language: i18n =
 			fileCount: "文件数量",
 			lastExported: "最后导出时间",
 		},
-		exportMode: {
-			title: "导出模式",
-			online: "如果您的文件将通过HTTP服务器在线访问，请使用此选项。",
-			local: "这将导出一个包含所有内容的单个（较大）HTML文件。仅适用于离线共享。",
-			rawDocuments: "导出普通的HTML文档，带有简单的样式和脚本，但无额外功能。",
-		},
 		purgeExport: {
 			description: "清除站点缓存以重新导出所有文件。",
 			clearCache: "清除缓存",
@@ -57,7 +53,7 @@ export const language: i18n =
 		title: "HTML导出设置",
 		support: "支持该插件的持续开发。",
 		debug: "将调试信息复制到剪贴板",
-		unavailableSetting: "⚠️ 此功能在 {0} 模式下不可用。",
+		unavailableSetting: "⚠️ 此功能在 Local Website 导出中不可用。",
 		pageFeatures: {
 			title: "页面功能",
 			description: "控制导出页面的各种功能。"

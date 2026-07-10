@@ -15,13 +15,6 @@ import safeParser from 'postcss-safe-parser';
 
 // #region Settings Definition
 
-export enum ExportPreset
-{
-	Online = "online",
-	Local = "local",
-	RawDocuments = "raw-documents",
-}
-
 export enum LogLevel
 {
 	All = "all",
@@ -42,33 +35,14 @@ export class Settings
 	public static rssDateProperty: string = "date";
 	public static onlyExportModified: boolean = true;
 	public static deleteOldFiles: boolean = true;
-	public static exportPreset: ExportPreset = ExportPreset.Online;
 	public static openAfterExport: boolean = true;
 
 	// Graph View Settings
 	public static filePickerBlacklist: string[] = ["(^|\\/)node_modules\\/","(^|\\/)dist\\/","(^|\\/)dist-ssr\\/","(^|\\/)\\.vscode\\/"]; // ignore node_modules, dist, and .vscode
 	public static filePickerWhitelist: string[] = ["\\.\\w+$"]; // only include files with extensions
 
-	public static async onlinePreset()
-	{
-		Settings.exportOptions.inlineCSS = false;
-		Settings.exportOptions.inlineFonts = false;
-		Settings.exportOptions.inlineHTML = false;
-		Settings.exportOptions.inlineJS = false;
-		Settings.exportOptions.inlineMedia = false;
-		Settings.exportOptions.inlineOther = false;
-
-		Settings.exportOptions.slugifyPaths = true;
-		Settings.exportOptions.graphViewOptions.setAvailable(true);
-		Settings.exportOptions.fileNavigationOptions.setAvailable(true);
-		Settings.exportOptions.searchOptions.setAvailable(true);
-		Settings.exportOptions.rssOptions.setAvailable(true);
-		Settings.exportOptions.combineAsSingleFile = false;
-
-		await SettingsPage.saveSettings();
-	}
-
-	public static async localPreset()
+	/** Force Local Website export options (only supported export mode). */
+	public static applyLocalWebsiteDefaults()
 	{
 		Settings.exportOptions.inlineCSS = true;
 		Settings.exportOptions.inlineFonts = true;
@@ -76,32 +50,11 @@ export class Settings
 		Settings.exportOptions.inlineJS = true;
 		Settings.exportOptions.inlineMedia = true;
 		Settings.exportOptions.inlineOther = true;
-		Settings.exportOptions.slugifyPaths = true;
 		Settings.exportOptions.graphViewOptions.setAvailable(true);
 		Settings.exportOptions.fileNavigationOptions.setAvailable(true);
 		Settings.exportOptions.searchOptions.setAvailable(false);
 		Settings.exportOptions.rssOptions.setAvailable(false);
 		Settings.exportOptions.combineAsSingleFile = true;
-
-		await SettingsPage.saveSettings();
-	}
-
-	public static async rawDocumentsPreset()
-	{
-		Settings.exportOptions.inlineCSS = true;
-		Settings.exportOptions.inlineFonts = true;
-		Settings.exportOptions.inlineHTML = true;
-		Settings.exportOptions.inlineJS = true;
-		Settings.exportOptions.inlineMedia = true;
-		Settings.exportOptions.inlineOther = true;
-		Settings.exportOptions.slugifyPaths = false;
-		Settings.exportOptions.graphViewOptions.setAvailable(false);
-		Settings.exportOptions.fileNavigationOptions.setAvailable(false);
-		Settings.exportOptions.searchOptions.setAvailable(false);
-		Settings.exportOptions.rssOptions.setAvailable(false);
-		Settings.exportOptions.combineAsSingleFile = false;
-
-		await SettingsPage.saveSettings();
 	}
 
 	static getAllFilesFromPaths(paths: string[]): string[]
@@ -645,6 +598,8 @@ export class SettingsPage extends PluginSettingTab
 		SettingsPage.deepAssign(Settings, loadedSettings);
 		// Reconstruct feature option instances to preserve constructor-set properties
 		Settings.exportOptions.reconstructFeatureOptions();
+		// Only Local Website export is supported; migrate any previous mode settings
+		Settings.applyLocalWebsiteDefaults();
 		SettingsPage.saveSettings();
 		SettingsPage.loaded = true;
 	}

@@ -18,6 +18,8 @@ export const language: i18n =
 	},
 	updateAvailable: "Доступне оновлення",
 	exportAsHTML: "Експортувати як HTML",
+	exportFolderAsHTML: "Експортувати папку як HTML",
+	exportFileWithLinkedAsHTML: "Експортувати файл і пов'язані файли як HTML",
 	exportModal:
 	{
 		title: "Експортувати в HTML",
@@ -39,12 +41,6 @@ export const language: i18n =
 			fileCount: "Кількість файлів",
 			lastExported: "Останній експорт",
 		},
-		exportMode: {
-			title: "Режим експорту",
-			online: "Використовуйте цей режим, якщо ваші файли будуть доступні онлайн (через http-сервер).",
-			local: "Цей режим експортує один (великий) HTML-файл, що містить весь експорт. Використовуйте лише для офлайн-поширення.",
-			rawDocuments: "Експортувати прості HTML-документи з базовими стилями та скриптами, але без додаткових функцій.",
-		},
 		purgeExport: {
 			description: "Очистити кеш сайту для повторного експорту всіх файлів.",
 			clearCache: "Очистити кеш",
@@ -57,7 +53,7 @@ export const language: i18n =
 		title: "Налаштування експорту HTML",
 		support: "Підтримайте подальшу розробку цього плагіна.",
 		debug: "Копіювати відлагоджувальну інформацію в буфер обміну",
-		unavailableSetting: "⚠️ Ця функція недоступна в режимі {0}.",
+		unavailableSetting: "⚠️ Ця функція недоступна для експорту Local Website.",
 		pageFeatures: {
 			title: "Функції сторінки",
 			description: "Керування різними функціями експортованої сторінки."
