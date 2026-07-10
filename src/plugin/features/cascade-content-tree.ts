@@ -42,7 +42,7 @@ export class CascadeContentTree extends FileTree
 		const entryIcon = (await _MarkdownRendererInternal.getIconForFile(entryFile)).icon;
 
 		const entryRoot = new FileTreeItem(this, this, 1);
-		entryRoot.title = entryFile.basename;
+		entryRoot.title = this.cascadeContext.entryDisplayTitle || entryFile.basename;
 		entryRoot.icon = entryIcon;
 		entryRoot.href = this.entryExportPath;
 		entryRoot.dataRef = this.entryExportPath;
@@ -54,19 +54,21 @@ export class CascadeContentTree extends FileTree
 
 		if (entryFile.extension === "md")
 		{
-			const markdown = await app.vault.read(entryFile);
-			this.parseMarkdownContent(markdown, entryFile, entryRoot);
+			const markdown = this.cascadeContext.entryMarkdownOverride
+				?? await app.vault.read(entryFile);
+			this.parseMarkdownContent(markdown, entryFile, entryRoot, !!this.cascadeContext.entryMarkdownOverride);
 		}
 
 		this.assignContentTreeOrder();
 	}
 
-	private parseMarkdownContent(markdown: string, sourceFile: TFile, entryRoot: FileTreeItem): void
+	private parseMarkdownContent(markdown: string, sourceFile: TFile, entryRoot: FileTreeItem, skipLeadingH1: boolean = false): void
 	{
 		const lines = this.stripFrontmatterAndCodeBlocks(markdown);
 		const headingStack: { level: number; item: FileTreeItem }[] = [];
 		const listStack: (FileTreeItem | undefined)[] = [];
 		const listIndentWidths: number[] = [];
+		let skippedLeadingH1 = false;
 
 		for (const line of lines)
 		{
@@ -79,6 +81,12 @@ export class CascadeContentTree extends FileTree
 				const title = headingMatch[2].trim();
 				listStack.length = 0;
 				listIndentWidths.length = 0;
+
+				if (skipLeadingH1 && !skippedLeadingH1 && level === 1)
+				{
+					skippedLeadingH1 = true;
+					continue;
+				}
 
 				while (headingStack.length > 0 && headingStack[headingStack.length - 1].level >= level)
 					headingStack.pop();

@@ -17,6 +17,15 @@ export interface CascadeExportNode
 	isEntry: boolean;
 }
 
+export interface CascadeSectionOptions
+{
+	entryMarkdownOverride: string;
+	entryOutputFileName: string;
+	entryDisplayTitle: string;
+	/** 0-based index among ATX H1s in the entry file (for DOM clipping after full-file render). */
+	entrySectionIndex: number;
+}
+
 export class CascadeExportContext
 {
 	public readonly entryFile: TFile;
@@ -25,9 +34,19 @@ export class CascadeExportContext
 	public readonly pageFiles: TFile[];
 	public readonly resourceFiles: TFile[];
 	public readonly nodes: Map<string, CascadeExportNode>;
+	public readonly entryMarkdownOverride?: string;
+	public readonly entryOutputFileName?: string;
+	public readonly entryDisplayTitle?: string;
+	public readonly entrySectionIndex?: number;
 	private readonly resourceSourcePaths: Set<string>;
 
-	constructor(entryFile: TFile, pageFiles: TFile[], resourceFiles: TFile[], nodes: Map<string, CascadeExportNode>)
+	constructor(
+		entryFile: TFile,
+		pageFiles: TFile[],
+		resourceFiles: TFile[],
+		nodes: Map<string, CascadeExportNode>,
+		sectionOptions?: CascadeSectionOptions
+	)
 	{
 		this.entryFile = entryFile;
 		this.entrySourcePath = entryFile.path;
@@ -36,6 +55,10 @@ export class CascadeExportContext
 		this.resourceFiles = resourceFiles;
 		this.nodes = nodes;
 		this.resourceSourcePaths = new Set(resourceFiles.map((file) => file.path));
+		this.entryMarkdownOverride = sectionOptions?.entryMarkdownOverride;
+		this.entryOutputFileName = sectionOptions?.entryOutputFileName;
+		this.entryDisplayTitle = sectionOptions?.entryDisplayTitle;
+		this.entrySectionIndex = sectionOptions?.entrySectionIndex;
 	}
 
 	public getNode(sourcePath: string): CascadeExportNode | undefined
@@ -57,6 +80,20 @@ export class CascadeExportContext
 export class CascadeExportResolver
 {
 	public static collect(entryFile: TFile): CascadeExportContext
+	{
+		return this.collectInternal(entryFile);
+	}
+
+	/**
+	 * Build a cascade graph scoped to links found in `sectionMarkdown` from the entry,
+	 * then BFS through linked pages using normal file metadata.
+	 */
+	public static collectFromSection(entryFile: TFile, sectionOptions: CascadeSectionOptions): CascadeExportContext
+	{
+		return this.collectInternal(entryFile, sectionOptions);
+	}
+
+	private static collectInternal(entryFile: TFile, sectionOptions?: CascadeSectionOptions): CascadeExportContext
 	{
 		const pageFiles: TFile[] = [];
 		const resourceFiles: TFile[] = [];
@@ -84,7 +121,11 @@ export class CascadeExportResolver
 
 			pageFiles.push(file);
 
-			for (const linkedFile of this.getLinkedFiles(file))
+			const linkedFiles = sectionOptions && file.path === entryFile.path
+				? this.getLinkedFilesFromMarkdown(sectionOptions.entryMarkdownOverride, file)
+				: this.getLinkedFiles(file);
+
+			for (const linkedFile of linkedFiles)
 			{
 				if (!this.isCascadePageFile(linkedFile))
 				{
@@ -115,7 +156,7 @@ export class CascadeExportResolver
 			}
 		}
 
-		return new CascadeExportContext(entryFile, pageFiles, resourceFiles, nodes);
+		return new CascadeExportContext(entryFile, pageFiles, resourceFiles, nodes, sectionOptions);
 	}
 
 	private static isCascadePageFile(file: TFile): boolean
@@ -151,6 +192,67 @@ export class CascadeExportResolver
 		}
 
 		return linkedFiles;
+	}
+
+	private static getLinkedFilesFromMarkdown(markdown: string, sourceFile: TFile): TFile[]
+	{
+		const linkedFiles: TFile[] = [];
+		const seen = new Set<string>();
+		const withoutCode = this.stripFencedCodeBlocks(markdown);
+
+		const wikiRegex = /!?\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g;
+		let wikiMatch: RegExpExecArray | null;
+		while ((wikiMatch = wikiRegex.exec(withoutCode)) !== null)
+		{
+			const target = this.resolveLink(wikiMatch[1], sourceFile);
+			if (!target || seen.has(target.path)) continue;
+			seen.add(target.path);
+			linkedFiles.push(target);
+		}
+
+		const mdRegex = /!?\[([^\]]*)\]\(([^)\s#]+)(?:#[^)\s]*)?\)/g;
+		let mdMatch: RegExpExecArray | null;
+		while ((mdMatch = mdRegex.exec(withoutCode)) !== null)
+		{
+			const target = this.resolveLink(mdMatch[2], sourceFile);
+			if (!target || seen.has(target.path)) continue;
+			seen.add(target.path);
+			linkedFiles.push(target);
+		}
+
+		return linkedFiles;
+	}
+
+	private static stripFencedCodeBlocks(markdown: string): string
+	{
+		const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+		const result: string[] = [];
+		let inFence = false;
+		let fenceMarker = "";
+
+		for (const line of lines)
+		{
+			const fenceMatch = line.match(/^(`{3,}|~{3,})(.*)$/);
+			if (fenceMatch)
+			{
+				const ticks = fenceMatch[1];
+				if (!inFence)
+				{
+					inFence = true;
+					fenceMarker = ticks;
+				}
+				else if (ticks[0] === fenceMarker[0] && ticks.length >= fenceMarker.length && fenceMatch[2].trim() === "")
+				{
+					inFence = false;
+					fenceMarker = "";
+				}
+				continue;
+			}
+
+			if (!inFence) result.push(line);
+		}
+
+		return result.join("\n");
 	}
 
 	private static resolveLink(link: string | undefined, sourceFile: TFile): TFile | undefined

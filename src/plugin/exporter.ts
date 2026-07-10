@@ -6,6 +6,8 @@ import { Website } from "src/plugin/website/website";
 import { ExportLog, MarkdownRendererAPI } from "src/plugin/render-api/render-api";
 import { ExportInfo, ExportModal } from "src/plugin/settings/export-modal";
 import { CascadeExportContext, CascadeExportResolver } from "./cascade-export-resolver";
+import { H1Section, splitMarkdownByH1 } from "./utils/h1-split";
+import { Attachment } from "./utils/downloadable";
 
 export class HTMLExporter
 {
@@ -54,10 +56,24 @@ export class HTMLExporter
 		const info = await this.updateSettings(usePreviousSettings, [entryFile], overrideExportPath, true);
 		if ((!info && !usePreviousSettings) || (info && info.canceled)) return;
 
-		const cascadeContext = CascadeExportResolver.collect(entryFile);
 		const exportPath = overrideExportPath ?? info?.exportPath ?? new Path(Settings.exportOptions.exportPath);
 		const exportRoot = new Path(entryFile.path).parent?.path ?? "";
 
+		if (entryFile.extension === "md")
+		{
+			const markdown = await app.vault.read(entryFile);
+			const sections = splitMarkdownByH1(markdown);
+			if (sections.length > 0)
+			{
+				const ok = await HTMLExporter.exportCascadeH1Sections(entryFile, sections, exportPath, exportRoot);
+				if (!ok) return;
+				if (Settings.openAfterExport) Utils.openPath(exportPath);
+				new Notice("✅ Finished HTML Export:\n\n" + exportPath, 5000);
+				return;
+			}
+		}
+
+		const cascadeContext = CascadeExportResolver.collect(entryFile);
 		const website = await HTMLExporter.exportFiles(
 			cascadeContext.pageFiles,
 			exportPath,
@@ -70,6 +86,90 @@ export class HTMLExporter
 		if (!website) return;
 		if (Settings.openAfterExport) Utils.openPath(exportPath);
 		new Notice("✅ Finished HTML Export:\n\n" + exportPath, 5000);
+	}
+
+	private static async exportCascadeH1Sections(
+		entryFile: TFile,
+		sections: H1Section[],
+		destination: Path,
+		exportRoot: string
+	): Promise<boolean>
+	{
+		MarkdownRendererAPI.beginBatch();
+		const previousFilesToExport = [...Settings.exportOptions.filesToExport];
+		const resourceByPath = new Map<string, Attachment>();
+		let deleteOld = Settings.deleteOldFiles;
+
+		try
+		{
+			for (let i = 0; i < sections.length; i++)
+			{
+				const section = sections[i];
+				ExportLog.progress(0, `Exporting section ${i + 1}/${sections.length}`, section.title, "var(--color-cyan)");
+
+				const cascadeContext = CascadeExportResolver.collectFromSection(entryFile, {
+					entryMarkdownOverride: section.markdown,
+					entryOutputFileName: section.outputFileName,
+					entryDisplayTitle: section.title,
+					entrySectionIndex: section.sourceH1Index,
+				});
+
+				Settings.exportOptions.filesToExport = cascadeContext.pageFiles.map((file) => file.path);
+
+				const website = await (await new Website(destination).load(
+					cascadeContext.pageFiles,
+					exportRoot,
+					cascadeContext
+				)).build();
+
+				if (!website)
+				{
+					new Notice("❌ Export Cancelled", 5000);
+					return false;
+				}
+
+				if (deleteOld)
+				{
+					ExportLog.addToProgressCap(website.index.deletedFiles.length / 2);
+					for (const dFile of website.index.deletedFiles)
+					{
+						const path = new Path(dFile, destination.path);
+
+						if (path.extension == "woff" || path.extension == "woff2" || path.extension == "ttf" || path.extension == "otf")
+						{
+							ExportLog.progress(0.5, "Deleting Old Files", "Skipping: " + path.path, "var(--color-yellow)");
+							continue;
+						}
+
+						await path.delete();
+						ExportLog.progress(0.5, "Deleting Old Files", "Deleting: " + path.path, "var(--color-red)");
+					}
+
+					await Path.removeEmptyDirectories(destination.path);
+					deleteOld = false;
+				}
+
+				await website.saveAsCombinedHTML();
+
+				for (const resource of website.getCascadeResourceDownloads())
+					resourceByPath.set(resource.targetPath.path, resource);
+			}
+
+			const resources = [...resourceByPath.values()];
+			if (resources.length) await Utils.downloadAttachments(resources);
+			return true;
+		}
+		catch (e)
+		{
+			new Notice("❌ Export Failed: " + e, 5000);
+			ExportLog.error(e, "Export Failed", true);
+			return false;
+		}
+		finally
+		{
+			Settings.exportOptions.filesToExport = previousFilesToExport;
+			MarkdownRendererAPI.endBatch();
+		}
 	}
 
 	public static async exportFiles(files: TFile[], destination: Path, saveFiles: boolean, deleteOld: boolean, exportRoot?: string, cascadeContext?: CascadeExportContext) : Promise<Website | undefined>

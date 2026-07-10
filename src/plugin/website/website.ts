@@ -491,6 +491,10 @@ export class Website
 			targetPath.reparse(Path.joinStrings(cascadeResourceFolderName, file.path).path);
 			if (filename) targetPath.fullName = filename;
 		}
+		else if (this.cascadeContext?.isEntry(file.path) && this.cascadeContext.entryOutputFileName)
+		{
+			targetPath.reparse(this.cascadeContext.entryOutputFileName);
+		}
 		else if (this.cascadeContext && !this.cascadeContext.isEntry(file.path))
 		{
 			targetPath.reparse(Path.joinStrings("links", file.path).path);
@@ -656,6 +660,7 @@ export class Website
 		{
 			const entry = this.index.getWebpage(this.cascadeContext.entrySourcePath);
 			outputName = entry?.targetPath.fullName
+				?? this.cascadeContext.entryOutputFileName
 				?? new Path(this.cascadeContext.entryFile.basename).setExtension("html").fullName;
 		}
 		else

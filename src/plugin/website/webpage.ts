@@ -12,6 +12,7 @@ import { AssetHandler } from "src/plugin/asset-loaders/asset-handler";
 import { Shared } from "src/shared/shared";
 import { moment } from "obsidian";
 import { Utils } from "src/plugin/utils/utils";
+import { clipRenderedContentToH1Section } from "src/plugin/utils/h1-split";
 
 export class WebpageOutputData
 {
@@ -535,7 +536,10 @@ export class Webpage extends Attachment
 		// get title and icon
 		const titleInfo = await _MarkdownRendererInternal.getTitleForFile(this.source);
 		const iconInfo = await _MarkdownRendererInternal.getIconForFile(this.source);
-		this.title = titleInfo.title;
+		const displayTitle = this.website.cascadeContext?.isEntry(this.source.path)
+			? this.website.cascadeContext.entryDisplayTitle
+			: undefined;
+		this.title = displayTitle || titleInfo.title;
 		this.icon = iconInfo.icon;
 		this.icon = await MarkdownRendererAPI.renderMarkdownSimple(this.icon) ?? this.icon;
 	
@@ -623,6 +627,8 @@ export class Webpage extends Attachment
 		if (!centerContent) return undefined;
 
 		const options = {...this.exportOptions, container: centerContent};
+		// Always render the real vault file (never setViewData on it). For H1-split
+		// entry pages, clip the preview DOM to the target section afterwards.
 		const renderInfo = await MarkdownRendererAPI.renderFile(this.source, options);
 
 		const contentEl = renderInfo?.contentEl;
@@ -640,6 +646,12 @@ export class Webpage extends Attachment
 
 			const cssclasses = this.frontmatter['cssclasses'];
 			if (cssclasses && cssclasses.length > 0) contentEl.classList.add(...cssclasses);
+
+			const sectionIndex = this.website.cascadeContext?.isEntry(this.source.path)
+				? this.website.cascadeContext.entrySectionIndex
+				: undefined;
+			if (sectionIndex !== undefined)
+				clipRenderedContentToH1Section(contentEl, sectionIndex);
 		}
 
 		if(this.sizerElement) this.sizerElement.style.paddingBottom = "";
