@@ -27,7 +27,6 @@ import { BacklinkList } from "./backlinks";
 import { Tags } from "./tags";
 import { Aliases } from "./aliases";
 import { initFullscreenControl } from "./fullscreen";
-import { initAnnotations } from "./annotations";
 
 type Constructor<T> = new () => T;
 
@@ -136,7 +135,6 @@ export class ObsidianWebsite {
 		if (rightSidebarEl) this.rightSidebar = new Sidebar(rightSidebarEl);
 		this.search = await new Search().init();
 		initFullscreenControl();
-		await initAnnotations();
 
 		const pathname =
 			document
