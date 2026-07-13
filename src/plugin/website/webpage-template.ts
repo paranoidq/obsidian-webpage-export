@@ -26,6 +26,7 @@ export class WebpageTemplate
 		this.doc = document.implementation.createHTMLDocument();
 
 		const collapseSidebarIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon sidebar-toggle-button-icon"><rect x="1" y="2" width="22" height="20" rx="4"></rect><rect x="4" y="5" width="2" height="14" rx="2" fill="currentColor" class="sidebar-toggle-icon-inner"></rect></svg>`;
+		const fullscreenEnterIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon sidebar-fullscreen-enter-icon"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>`;
 		
 		const head = this.doc.head;
 		head.innerHTML = `<meta charset="UTF-8">` + head.innerHTML;
@@ -54,6 +55,13 @@ export class WebpageTemplate
 					const leftSidebarHandle = leftSidebar.createDiv({attr: {class: "sidebar-handle"}});
 					const leftTopbar = leftSidebar.createDiv({attr: {class: "sidebar-topbar"}});
 						const leftTopbarContent = leftTopbar.createDiv({attr: {class: "topbar-content"}});
+						const leftFullscreenIcon = leftTopbar.createDiv({attr: {
+							class: "clickable-icon sidebar-fullscreen-icon",
+							role: "button",
+							title: "Fullscreen",
+							"aria-label": "Fullscreen",
+						}});
+							leftFullscreenIcon.innerHTML = fullscreenEnterIcon;
 						const leftCollapseIcon = leftTopbar.createDiv({attr: {class: "clickable-icon sidebar-collapse-icon"}});
 							leftCollapseIcon.innerHTML = collapseSidebarIcon;
 					const leftSidebarContentWrapper = leftSidebar.createDiv({attr: {class: "sidebar-content-wrapper"}});

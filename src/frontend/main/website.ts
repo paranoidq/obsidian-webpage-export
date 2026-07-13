@@ -26,6 +26,8 @@ import {
 import { BacklinkList } from "./backlinks";
 import { Tags } from "./tags";
 import { Aliases } from "./aliases";
+import { initFullscreenControl } from "./fullscreen";
+import { initAnnotations } from "./annotations";
 
 type Constructor<T> = new () => T;
 
@@ -133,6 +135,8 @@ export class ObsidianWebsite {
 		if (leftSidebarEl) this.leftSidebar = new Sidebar(leftSidebarEl);
 		if (rightSidebarEl) this.rightSidebar = new Sidebar(rightSidebarEl);
 		this.search = await new Search().init();
+		initFullscreenControl();
+		await initAnnotations();
 
 		const pathname =
 			document
@@ -337,9 +341,6 @@ export class ObsidianWebsite {
 		// if this document is already loaded
 		if (this.document.pathname == pathname) {
 			if (header) this.document.scrollToHeader(header);
-			else {
-				new Notice("This page is already loaded.");
-			}
 
 			if (this.supportsClientSideHistory && pushState && (query || header)) {
 				history.pushState(
