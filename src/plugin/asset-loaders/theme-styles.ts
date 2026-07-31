@@ -21,9 +21,16 @@ export class ThemeStyles extends AssetLoader
     private static async getThemeContent(themeName: string): Promise<string>
     {
         if (themeName == "Default") return "/* Using default theme. */";
-		
+
 		// @ts-ignore
-        const themePath = new Path(app.customCss.themes[themeName].dir).joinString("theme.css").absolute();
+		const theme = app.customCss?.themes?.[themeName];
+		if (!theme?.dir)
+		{
+			ExportLog.warning(`Theme "${themeName}" is not installed; falling back to Default.`);
+			return "/* Using default theme. Missing theme: " + themeName + " */";
+		}
+
+        const themePath = new Path(theme.dir).joinString("theme.css").absolute();
 		console.log("Loading theme from path: " + themePath.path);
         if (!themePath.exists)
         {
