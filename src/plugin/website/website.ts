@@ -17,6 +17,7 @@ import { ThemeToggle } from "src/plugin/features/theme-toggle";
 import { SearchInput } from "src/plugin/features/search-input";
 import { Utils } from "src/plugin/utils/utils";
 import { CascadeExportContext } from "src/plugin/cascade-export-resolver";
+import { DEFAULT_MAX_COMBINED_HTML_BYTES, enforceHtmlSizeBudget } from "src/plugin/utils/html-size-budget";
 
 const cascadeResourceFolderName = "resources";
 
@@ -655,6 +656,8 @@ export class Website
 	public async saveAsCombinedHTML(): Promise<void>
 	{
 		const html = await this.getCombinedHTML();
+		const maxBytes = this.exportOptions.maxCombinedHtmlBytes ?? DEFAULT_MAX_COMBINED_HTML_BYTES;
+		const budgeted = await enforceHtmlSizeBudget(html, maxBytes);
 		let outputName: string;
 		if (this.cascadeContext)
 		{
@@ -668,6 +671,6 @@ export class Website
 			outputName = this.exportOptions.siteName + ".html";
 		}
 		const path = this.destination.joinString(outputName);
-		await path.write(html);
+		await path.write(budgeted.html);
 	}
 }

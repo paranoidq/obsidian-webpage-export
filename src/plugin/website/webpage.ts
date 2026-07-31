@@ -13,6 +13,7 @@ import { Shared } from "src/shared/shared";
 import { moment } from "obsidian";
 import { Utils } from "src/plugin/utils/utils";
 import { clipRenderedContentToH1Section } from "src/plugin/utils/h1-split";
+import { compressDataUriMaximally, toDataUri } from "src/plugin/utils/image-compressor";
 
 export class WebpageOutputData
 {
@@ -823,6 +824,12 @@ export class Webpage extends Attachment
 		this.pageDocument.head.innerHTML = head + this.pageDocument.head.innerHTML;
 	}
 
+	private async maybeCompressDataUri(dataUri: string): Promise<string>
+	{
+		const compressed = await compressDataUriMaximally(dataUri);
+		return compressed ?? dataUri;
+	}
+
 	private async inlineMedia()
 	{
 		const elements = Array.from(this.pageDocument.querySelectorAll("[src]:not(head [src])"))
@@ -845,9 +852,10 @@ export class Webpage extends Attachment
 						}
 
 						const blob = await response.blob();
-						const base64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
+						const buffer = Buffer.from(await blob.arrayBuffer());
 						const type = blob.type || "application/octet-stream";
-						mediaEl.setAttribute("src", `data:${type};base64,${base64}`);
+						const dataUri = await this.maybeCompressDataUri(toDataUri(type, buffer));
+						mediaEl.setAttribute("src", dataUri);
 					}
 					catch
 					{
@@ -865,7 +873,7 @@ export class Webpage extends Attachment
 						this.markBrokenMediaElement(mediaEl, rawSrc);
 						continue;
 					}
-					mediaEl.setAttribute("src", dataUri);
+					mediaEl.setAttribute("src", await this.maybeCompressDataUri(dataUri));
 					continue;
 				}
 
@@ -893,8 +901,9 @@ export class Webpage extends Attachment
 					: (registryType ?? "application");
 
 				if (ext === "svg") ext += "+xml";
-				
-				mediaEl.setAttribute("src", `data:${type}/${ext};base64,${base64}`);
+
+				const dataUri = `data:${type}/${ext};base64,${base64}`;
+				mediaEl.setAttribute("src", await this.maybeCompressDataUri(dataUri));
 			}
 			catch (error)
 			{

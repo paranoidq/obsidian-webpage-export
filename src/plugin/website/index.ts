@@ -541,7 +541,9 @@ export class Index
 			fileInfo.backlinks = [];
 			fileInfo.type = AssetLoader.extentionToType(attachment.targetPath.extension);
 			fileInfo.data = null;
+			// Media is already inlined into page HTML as data URIs; skip duplicate base64 in metadata.
 			const shouldInlineAttachmentData = this.exportOptions.combineAsSingleFile
+				&& fileInfo.type !== AssetType.Media
 				&& !this.website.cascadeContext?.isResource(attachment.sourcePath);
 
 			if (shouldInlineAttachmentData)

@@ -153,6 +153,13 @@ export class ExportPipelineOptions extends MarkdownRendererOptions
 	combineAsSingleFile: boolean = true;
 
 	/**
+	 * Warning threshold for the combined single-file HTML size in bytes.
+	 * Images are always compressed as much as possible; if the result still
+	 * exceeds this size, a warning is logged but export is not blocked.
+	 */
+	maxCombinedHtmlBytes: number = 10 * 1024 * 1024;
+
+	/**
 	 * Do not leave any online urls, download them and embed them into the HTML.
 	 */
 	offlineResources: boolean = false;
