@@ -18,8 +18,10 @@ import { SearchInput } from "src/plugin/features/search-input";
 import { Utils } from "src/plugin/utils/utils";
 import { CascadeExportContext } from "src/plugin/cascade-export-resolver";
 import { DEFAULT_MAX_COMBINED_HTML_BYTES, enforceHtmlSizeBudget } from "src/plugin/utils/html-size-budget";
+import { encodeMetadataPayload } from "src/plugin/utils/metadata-codec";
 
-const cascadeResourceFolderName = "resources";
+const cascadeResourceFolderName = "attachments";
+const INLINE_MEDIA_REGISTRY_ID = "inline-media-registry";
 
 export class Website
 {
@@ -34,12 +36,68 @@ export class Website
 	public webpageTemplate: WebpageTemplate;
 	public exportOptions: ExportPipelineOptions;
 
+	/** sourcePath -> flat filename under attachments/ (stable across repeated lookups). */
+	private cascadeResourceNameBySource = new Map<string, string>();
+	/** Occupied flat filenames under attachments/ for collision avoidance. */
+	private cascadeResourceUsedNames = new Set<string>();
+	/** mediaKey -> data URI (single copy for the whole site). */
+	private inlineMediaRegistry = new Map<string, string>();
+
 	constructor(destination: Path | string, options?: ExportPipelineOptions)
 	{
 		if (typeof destination == "string") destination = new Path(destination);
 		this.exportOptions = Object.assign(Settings.exportOptions, options);
 		if (!destination.isDirectoryFS) throw new Error("Website destination must be a folder: " + destination.path);
 		this.destination = destination;
+	}
+
+	/** Register (or reuse) an inlined media data URI keyed for site-wide dedupe. */
+	public registerInlineMedia(key: string, dataUri: string): void
+	{
+		if (!this.inlineMediaRegistry.has(key))
+		{
+			this.inlineMediaRegistry.set(key, dataUri);
+		}
+	}
+
+	public getInlineMediaRegistry(): Record<string, string>
+	{
+		const out: Record<string, string> = {};
+		for (const [key, uri] of this.inlineMediaRegistry)
+		{
+			out[key] = uri;
+		}
+		return out;
+	}
+
+	/**
+	 * Allocate a flat filename under attachments/ for a cascade resource.
+	 * First file keeps its name; later same-name files get -1, -2, ...
+	 * The same source path always returns the same allocated name.
+	 */
+	private allocateCascadeResourceFileName(file: TFile, filename?: string): string
+	{
+		const cached = this.cascadeResourceNameBySource.get(file.path);
+		if (cached) return cached;
+
+		const rawName = filename ?? file.name;
+		let namePath = new Path(rawName);
+		if (this.exportOptions.slugifyPaths)
+			namePath = namePath.slugified(true);
+
+		const base = namePath.basename;
+		const ext = namePath.extension;
+		let candidate = namePath.fullName;
+		let suffix = 1;
+		while (this.cascadeResourceUsedNames.has(candidate))
+		{
+			candidate = `${base}-${suffix}${ext}`;
+			suffix++;
+		}
+
+		this.cascadeResourceUsedNames.add(candidate);
+		this.cascadeResourceNameBySource.set(file.path, candidate);
+		return candidate;
 	}
 
 	private async loadCascadeResourceFiles(): Promise<void>
@@ -190,7 +248,7 @@ export class Website
 					const data = Buffer.from(await app.vault.readBinary(file));
 					const path = this.getTargetPathForFile(file);
 					let attachment = new Attachment(data, path, file, this.exportOptions);
-					// Cascade/folder exports: only pages belong in the nav tree; media embeds inline, other files go to resources/
+					// Cascade/folder exports: only pages belong in the nav tree; media embeds inline, other files go to attachments/
 					attachment.showInTree = this.cascadeContext ? false : true;
 					await this.index.addFile(attachment);
 				}
@@ -489,8 +547,11 @@ export class Website
 
 		if (this.cascadeContext?.isResource(file.path))
 		{
-			targetPath.reparse(Path.joinStrings(cascadeResourceFolderName, file.path).path);
-			if (filename) targetPath.fullName = filename;
+			const flatName = this.allocateCascadeResourceFileName(file, filename);
+			targetPath.reparse(Path.joinStrings(cascadeResourceFolderName, flatName).path);
+			// Filename already slugified during allocation; avoid re-slugifying the whole path
+			// so collision-resolved names stay stable.
+			return targetPath;
 		}
 		else if (this.cascadeContext?.isEntry(file.path) && this.cascadeContext.entryOutputFileName)
 		{
@@ -606,10 +667,35 @@ export class Website
 			return "";
 		}
 
+		const shellExportPath = index.targetPath.path;
 		let html = new DOMParser().parseFromString(index.data as string, "text/html");
 
-		// insert head references
+		// Ensure shell page media uses short refs only (data already stripped in Webpage.html).
+		for (const el of Array.from(html.querySelectorAll("[data-media-id]")))
+		{
+			if (el.getAttribute("src")?.startsWith("data:"))
+			{
+				el.removeAttribute("src");
+			}
+			el.removeAttribute("data-media-pending-strip");
+		}
+
+		// insert head references once for the whole single-file export
+		// (theme CSS, plugin CSS, JS, and fonts — not duplicated per page).
+		// Full font glyph subsetting is intentionally not done here: it needs
+		// a subsetter dependency and risks missing rare characters; single
+		// @font-face inlining already avoids the largest style duplication.
 		html.head.innerHTML += AssetHandler.getHeadReferences(this.exportOptions);
+
+		// Media registry — single copy of all inlined image data URIs
+		const mediaRegistry = this.getInlineMediaRegistry();
+		if (Object.keys(mediaRegistry).length > 0)
+		{
+			const mediaEl = html.head.createEl("data");
+			mediaEl.id = INLINE_MEDIA_REGISTRY_ID;
+			mediaEl.setAttribute("value", encodeMetadataPayload(mediaRegistry));
+			html.head.appendChild(this.createMediaHydrateScript());
+		}
 
 		// define metadata
 		let metadataScript = html.head.createEl("data");
@@ -621,14 +707,20 @@ export class Website
 		delete this.index.websiteData.fileInfo;
 		// @ts-ignore
 		delete this.index.websiteData.webpages;
-		metadataScript.setAttribute("value", btoa(encodeURI(JSON.stringify(this.index.websiteData))));
+		metadataScript.setAttribute("value", encodeMetadataPayload(this.index.websiteData));
 
 		// create a data element with the id being the file path for each file
 		for (const [path, data] of Object.entries(webpages))
 		{
+			const pageData = { ...(data as object) } as any;
+			// Shell page body is already in the DOM; omit duplicate full HTML payload.
+			if (path === shellExportPath)
+			{
+				pageData.data = null;
+			}
 			const dataElement = html.head.createEl("data");
 			dataElement.id = btoa(encodeURI(path));
-			dataElement.setAttribute("value", btoa(encodeURI(JSON.stringify(data))));
+			dataElement.setAttribute("value", encodeMetadataPayload(pageData));
 		}
 
 		// do the same for file info skipping already existing elements
@@ -637,10 +729,51 @@ export class Website
 			if (html.getElementById(btoa(encodeURI(path)))) continue;
 			const dataElement = html.head.createEl("data");
 			dataElement.id = btoa(encodeURI(path));
-			dataElement.setAttribute("value", btoa(encodeURI(JSON.stringify(data))));
+			dataElement.setAttribute("value", encodeMetadataPayload(data));
 		}
 
 		return `<!DOCTYPE html>\n${html.documentElement.outerHTML}`;
+	}
+
+	/** Sync-kickoff + async gzip decode hydrate so images (and ImageViewer) get src before interaction. */
+	private createMediaHydrateScript(): HTMLScriptElement
+	{
+		const script = document.createElement("script");
+		script.textContent = `(function(){
+var PREFIX_GZ="gz1.", PREFIX_U8="u8.";
+function b64ToBytes(b64){var bin=atob(b64);var out=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);return out;}
+async function decodePayload(v){
+  if(!v)return{};
+  if(v.indexOf(PREFIX_GZ)===0){
+    var bytes=b64ToBytes(v.slice(PREFIX_GZ.length));
+    var stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    var text=await new Response(stream).text();
+    return JSON.parse(text);
+  }
+  if(v.indexOf(PREFIX_U8)===0){
+    return JSON.parse(new TextDecoder().decode(b64ToBytes(v.slice(PREFIX_U8.length))));
+  }
+  return JSON.parse(decodeURI(atob(v)));
+}
+function applyMap(root,map){
+  if(!map)return;
+  var nodes=(root||document).querySelectorAll("[data-media-id]");
+  for(var i=0;i<nodes.length;i++){
+    var n=nodes[i],k=n.getAttribute("data-media-id");
+    if(k&&map[k]) n.setAttribute("src",map[k]);
+  }
+}
+window.__hydrateInlineMedia=async function(root){
+  if(!window.__INLINE_MEDIA__){
+    var el=document.getElementById("${INLINE_MEDIA_REGISTRY_ID}");
+    window.__INLINE_MEDIA__=await decodePayload(el&&el.getAttribute("value"));
+  }
+  applyMap(root||document,window.__INLINE_MEDIA__);
+  document.documentElement.setAttribute("data-media-hydrated","1");
+};
+window.__MEDIA_HYDRATE_PROMISE=window.__hydrateInlineMedia(document);
+})();`;
+		return script;
 	}
 
 	public getCascadeResourceDownloads(): Attachment[]

@@ -14,6 +14,7 @@ import { CustomHeadOptions } from "src/shared/features/custom-head";
 import { MarkdownRendererOptions } from "src/plugin/render-api/api-options";
 import { RssOptions } from "src/shared/features/rss";
 import { LinkPreviewOptions } from "src/shared/features/link-preview";
+import { ImageCompressionLevel } from "src/plugin/utils/image-compressor";
 
 export class ExportPipelineOptions extends MarkdownRendererOptions
 {
@@ -154,10 +155,17 @@ export class ExportPipelineOptions extends MarkdownRendererOptions
 
 	/**
 	 * Warning threshold for the combined single-file HTML size in bytes.
-	 * Images are always compressed as much as possible; if the result still
-	 * exceeds this size, a warning is logged but export is not blocked.
+	 * Image compression is controlled by imageCompressionLevel; if the result
+	 * still exceeds this size, a warning is logged but export is not blocked
+	 * and compression is not strengthened further.
 	 */
 	maxCombinedHtmlBytes: number = 10 * 1024 * 1024;
+
+	/**
+	 * How aggressively to compress inlined bitmap images.
+	 * Medium and below should remain visually sharp; High may introduce artifacts.
+	 */
+	imageCompressionLevel: ImageCompressionLevel = ImageCompressionLevel.Medium;
 
 	/**
 	 * Do not leave any online urls, download them and embed them into the HTML.

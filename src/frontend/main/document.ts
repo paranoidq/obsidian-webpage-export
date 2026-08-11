@@ -201,7 +201,7 @@ export class WebpageDocument {
 		if (this.isMainDocument || this.isPreview)
 			CascadeBreadcrumbs.render(this.documentEl, this.info?.cascadeBreadcrumbs);
 
-		this.postProcess();
+		await this.postProcess();
 
 		if (this.isMainDocument || this.isPreview) {
 			this.processHeaders();
@@ -254,7 +254,7 @@ export class WebpageDocument {
 		CodeBlocks.process(this.documentEl, threshold);
 	}
 
-	public postProcess() {
+	public async postProcess() {
 		// make completed kanban checkboxes checked
 		this.documentEl
 			?.querySelectorAll(
@@ -273,6 +273,11 @@ export class WebpageDocument {
 				"allow-fold-lists",
 				ObsidianSite.metadata.featureOptions.document.allowFoldingLists
 			);
+		}
+
+		// Restore data URIs before ImageViewer (requires non-empty src).
+		if (this.documentEl) {
+			await ObsidianSite.ensureInlineMediaHydrated(this.documentEl);
 		}
 
 		if (ImageViewer.isEnabled()) {

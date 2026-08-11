@@ -4,19 +4,33 @@ export interface CompressOptions
 	quality: number;
 }
 
-/** Progressive compression ladder: milder first, more aggressive later. */
-export const COMPRESS_LADDER: readonly CompressOptions[] = [
-	{ maxEdge: 1920, quality: 0.82 },
-	{ maxEdge: 1280, quality: 0.7 },
-	{ maxEdge: 960, quality: 0.55 },
-	{ maxEdge: 640, quality: 0.4 },
-];
+export enum ImageCompressionLevel
+{
+	None = "none",
+	Low = "low",
+	Medium = "medium",
+	High = "high",
+}
 
-/** Default single-step options (mild). Prefer {@link compressDataUriMaximally} for export. */
-export const DEFAULT_COMPRESS_OPTIONS: CompressOptions = COMPRESS_LADDER[0];
+/** Default mild options (medium). */
+export const DEFAULT_COMPRESS_OPTIONS: CompressOptions = {
+	maxEdge: 2560,
+	quality: 0.90,
+};
 
-/** Most aggressive ladder step — used when maximizing savings. */
-export const MAX_COMPRESS_OPTIONS: CompressOptions = COMPRESS_LADDER[COMPRESS_LADDER.length - 1];
+const LEVEL_OPTIONS: Record<Exclude<ImageCompressionLevel, ImageCompressionLevel.None>, CompressOptions> = {
+	[ImageCompressionLevel.Low]: { maxEdge: 4096, quality: 0.95 },
+	[ImageCompressionLevel.Medium]: { maxEdge: 2560, quality: 0.90 },
+	[ImageCompressionLevel.High]: { maxEdge: 1280, quality: 0.55 },
+};
+
+/** Returns compress options for a level, or undefined for None (skip compression). */
+export function getCompressOptionsForLevel(level: ImageCompressionLevel | string | undefined): CompressOptions | undefined
+{
+	const normalized = (level ?? ImageCompressionLevel.Medium) as ImageCompressionLevel;
+	if (normalized === ImageCompressionLevel.None) return undefined;
+	return LEVEL_OPTIONS[normalized] ?? LEVEL_OPTIONS[ImageCompressionLevel.Medium];
+}
 
 /** Skip compression for images already under this size (raw bytes). */
 export const SMALL_IMAGE_BYTES = 50 * 1024;
@@ -191,44 +205,4 @@ export async function compressImageToDataUri(
 	}
 
 	return toDataUri(encoded.mime, outBuffer);
-}
-
-/**
- * Try each ladder step (from `startIndex`) until one produces a smaller data URI.
- * Returns the compressed URI and the ladder index used, or undefined if nothing helped.
- */
-export async function compressDataUriAlongLadder(
-	dataUri: string,
-	startIndex: number = 0,
-): Promise<{ dataUri: string; ladderIndex: number } | undefined>
-{
-	for (let i = startIndex; i < COMPRESS_LADDER.length; i++)
-	{
-		const compressed = await compressImageToDataUri(dataUri, undefined, COMPRESS_LADDER[i]);
-		if (compressed && compressed.length < dataUri.length)
-		{
-			return { dataUri: compressed, ladderIndex: i };
-		}
-	}
-	return undefined;
-}
-
-/**
- * Try every ladder step against the original image and keep the smallest result.
- * Returns undefined when nothing beats the input.
- */
-export async function compressDataUriMaximally(dataUri: string): Promise<string | undefined>
-{
-	let best: string | undefined;
-	for (const options of COMPRESS_LADDER)
-	{
-		const compressed = await compressImageToDataUri(dataUri, undefined, options);
-		if (!compressed) continue;
-		if (!best || compressed.length < best.length)
-		{
-			best = compressed;
-		}
-	}
-	if (!best || best.length >= dataUri.length) return undefined;
-	return best;
 }

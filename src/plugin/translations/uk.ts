@@ -25,6 +25,14 @@ export const language: i18n =
 		exportAsTitle: "Експортувати {0} як HTML",
 		moreOptions: "Більше опцій на сторінці налаштувань плагіна.",
 		openAfterExport: "Відкрити після експорту",
+		imageCompression: {
+			title: "Image compression",
+			description: "How strongly to compress inlined images. Medium and below stay sharp.",
+			none: "None",
+			low: "Low",
+			medium: "Medium",
+			high: "High (images may look distorted)",
+		},
 		exportButton: "Експортувати",
 		filePicker:
 		{
@@ -203,6 +211,14 @@ export const language: i18n =
 		slugifyPaths: {
 			title: "Slugify шляхи",
 			description: "Зробити всі шляхи та імена файлів у веб-стилі (нижній регістр, без пробілів)",
+		},
+		imageCompression: {
+			title: "Image compression",
+			description: "How strongly to compress inlined images. Medium and below stay sharp.",
+			none: "None",
+			low: "Low",
+			medium: "Medium",
+			high: "High (images may look distorted)",
 		},
 		addPageIcon: {
 			title: "Додати іконку сторінки",

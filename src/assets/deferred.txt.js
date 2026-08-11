@@ -27,7 +27,21 @@ async function loadIncludes()
 				const dataEl = document.getElementById(btoa(encodeURI(includePath)));
 				if (dataEl)
 				{
-					const data = JSON.parse(decodeURI(atob(dataEl.getAttribute("value") ?? "")));
+					const raw = dataEl.getAttribute("value") ?? "";
+					let data;
+					if (raw.indexOf("gz1.") === 0) {
+						const b64 = raw.slice(4);
+						const bin = atob(b64);
+						const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+						const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+						data = JSON.parse(await new Response(stream).text());
+					} else if (raw.indexOf("u8.") === 0) {
+						const b64 = raw.slice(3);
+						const bin = atob(b64);
+						data = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0))));
+					} else {
+						data = JSON.parse(decodeURI(atob(raw)));
+					}
 					includeText = data?.data ?? "";
 				}
 			}

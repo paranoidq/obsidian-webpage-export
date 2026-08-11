@@ -23,6 +23,14 @@ export const language: i18n =
 		exportAsTitle: "Esporta {0} come HTML",
 		moreOptions: "Altre opzioni nella pagina delle impostazioni del plugin.",
 		openAfterExport: "Apri dopo l'esportazione",
+		imageCompression: {
+			title: "Image compression",
+			description: "How strongly to compress inlined images. Medium and below stay sharp.",
+			none: "None",
+			low: "Low",
+			medium: "Medium",
+			high: "High (images may look distorted)",
+		},
 		exportButton: "Esporta",
 		filePicker: {
 			title: "Seleziona tutti i file nel vault esportato",
@@ -198,6 +206,14 @@ export const language: i18n =
 		slugifyPaths: {
 			title: "Percorsi Slugificati",
 			description: "Rendi tutti i percorsi e i nomi dei file in stile web (minuscoli, senza spazi)",
+		},
+		imageCompression: {
+			title: "Image compression",
+			description: "How strongly to compress inlined images. Medium and below stay sharp.",
+			none: "None",
+			low: "Low",
+			medium: "Medium",
+			high: "High (images may look distorted)",
 		},
 		addPageIcon: {
 			title: "Aggiungi Icona Pagina",

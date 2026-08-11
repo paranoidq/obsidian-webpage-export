@@ -5,10 +5,11 @@ import { Settings, SettingsPage } from './settings';
 import { FilePickerTree } from 'src/plugin/features/file-picker';
 import { Path } from 'src/plugin/utils/path';
 import { FileDialogs } from 'src/plugin/utils/file-dialogs';
-import { createFileInput, createToggle } from './settings-components';
+import { createFileInput, createToggle, createDropdown } from './settings-components';
 import { Website } from 'src/plugin/website/website';
 import { Index } from 'src/plugin/website';
 import { i18n } from '../translations/language';
+import { ImageCompressionLevel } from 'src/plugin/utils/image-compressor';
 
 export interface ExportInfo
 {
@@ -182,6 +183,21 @@ export class ExportModal extends Modal
 		
 
 		createToggle(contentEl, lang.openAfterExport, () => Settings.openAfterExport, (value) => Settings.openAfterExport = value);
+
+		const compressionLabels = lang.imageCompression;
+		createDropdown(
+			contentEl,
+			compressionLabels.title,
+			() => Settings.exportOptions.imageCompressionLevel,
+			(value) => Settings.exportOptions.imageCompressionLevel = value as ImageCompressionLevel,
+			{
+				[compressionLabels.none]: ImageCompressionLevel.None,
+				[compressionLabels.low]: ImageCompressionLevel.Low,
+				[compressionLabels.medium]: ImageCompressionLevel.Medium,
+				[compressionLabels.high]: ImageCompressionLevel.High,
+			},
+			compressionLabels.description,
+		);
 
 		let exportButton : ButtonComponent | undefined = undefined;
 

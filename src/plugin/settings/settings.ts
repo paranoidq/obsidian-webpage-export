@@ -3,6 +3,7 @@ import { Path } from 'src/plugin/utils/path';
 import pluginStylesBlacklist from 'src/assets/third-party-styles-blacklist.txt';
 import { ExportLog } from 'src/plugin/render-api/render-api';
 import { createDivider, createDropdown, createFeatureSetting, createFileInput, createSection, createText, createToggle, generateSettingsFromObject }  from './settings-components';
+import { ImageCompressionLevel } from "src/plugin/utils/image-compressor";
 import { ExportPipelineOptions } from "src/plugin/website/pipeline-options.js";
 import { FlowList } from 'src/plugin/features/flow-list';
 import { i18n } from '../translations/language';
@@ -305,6 +306,20 @@ export class SettingsPage extends PluginSettingTab
 			() => Settings.exportOptions.slugifyPaths,
 			(value) => Settings.exportOptions.slugifyPaths = value,
 			lang.slugifyPaths.description);
+
+		createDropdown(
+			section,
+			lang.imageCompression.title,
+			() => Settings.exportOptions.imageCompressionLevel,
+			(value) => Settings.exportOptions.imageCompressionLevel = value as ImageCompressionLevel,
+			{
+				[lang.imageCompression.none]: ImageCompressionLevel.None,
+				[lang.imageCompression.low]: ImageCompressionLevel.Low,
+				[lang.imageCompression.medium]: ImageCompressionLevel.Medium,
+				[lang.imageCompression.high]: ImageCompressionLevel.High,
+			},
+			lang.imageCompression.description,
+		);
 
 		createToggle(section, lang.makeOfflineCompatible.title,
 			() => Settings.exportOptions.offlineResources,

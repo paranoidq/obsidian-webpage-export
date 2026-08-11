@@ -13,7 +13,7 @@ import { Shared } from "src/shared/shared";
 import { moment } from "obsidian";
 import { Utils } from "src/plugin/utils/utils";
 import { clipRenderedContentToH1Section } from "src/plugin/utils/h1-split";
-import { compressDataUriMaximally, toDataUri } from "src/plugin/utils/image-compressor";
+import { compressImageToDataUri, getCompressOptionsForLevel, toDataUri } from "src/plugin/utils/image-compressor";
 
 export class WebpageOutputData
 {
@@ -193,6 +193,16 @@ export class Webpage extends Attachment
 	 */
 	private get html(): string
 	{
+		// Strip long data URIs before serialize — registry holds the only copy.
+		for (const el of Array.from(this.pageDocument.querySelectorAll("[data-media-pending-strip], [data-media-id]")))
+		{
+			const src = el.getAttribute("src") ?? "";
+			if (src.startsWith("data:") || el.hasAttribute("data-media-pending-strip"))
+			{
+				el.removeAttribute("src");
+			}
+			el.removeAttribute("data-media-pending-strip");
+		}
 		const htmlString = "<!DOCTYPE html> " + this.pageDocument.documentElement.outerHTML;
 		return htmlString;
 	}
@@ -606,10 +616,11 @@ export class Webpage extends Attachment
 
 		if (this.exportOptions.includeJS)
 		{
-			const bodyScript = this.pageDocument.body.createEl("script");
+			const bodyScript = this.pageDocument.createElement("script");
 			bodyScript.setAttribute("defer", "");
-			bodyScript.innerText = AssetHandler.themeLoadJS.data.toString();
-			this.pageDocument.body.prepend(bodyScript);
+			// textContent (not innerText) — innerText can surface script source in print.
+			bodyScript.textContent = AssetHandler.themeLoadJS.data.toString();
+			this.pageDocument.head.appendChild(bodyScript);
 		}
 
 		this.pageDocument.documentElement.lang = moment.locale();
@@ -826,8 +837,26 @@ export class Webpage extends Attachment
 
 	private async maybeCompressDataUri(dataUri: string): Promise<string>
 	{
-		const compressed = await compressDataUriMaximally(dataUri);
+		const options = getCompressOptionsForLevel(this.exportOptions.imageCompressionLevel);
+		if (!options) return dataUri;
+		const compressed = await compressImageToDataUri(dataUri, undefined, options);
 		return compressed ?? dataUri;
+	}
+
+	/**
+	 * Register compressed media on the website registry and point the element
+	 * at data-media-id only (long base64 lives once in the registry).
+	 * Also set src immediately so ImageViewer eligibility works before hydrate
+	 * in contexts where registry hydrate has not run yet (e.g. mid-build).
+	 * At combine time src is stripped to short refs; hydrate restores src.
+	 */
+	private applyInlineMedia(mediaEl: Element, key: string, dataUri: string): void
+	{
+		this.website.registerInlineMedia(key, dataUri);
+		mediaEl.setAttribute("data-media-id", key);
+		// Keep src during page build so rendering/tools see the image; strip at combine.
+		mediaEl.setAttribute("src", dataUri);
+		mediaEl.setAttribute("data-media-pending-strip", "1");
 	}
 
 	private async inlineMedia()
@@ -855,7 +884,8 @@ export class Webpage extends Attachment
 						const buffer = Buffer.from(await blob.arrayBuffer());
 						const type = blob.type || "application/octet-stream";
 						const dataUri = await this.maybeCompressDataUri(toDataUri(type, buffer));
-						mediaEl.setAttribute("src", dataUri);
+						const key = `blob:${rawSrc}`;
+						this.applyInlineMedia(mediaEl, key, dataUri);
 					}
 					catch
 					{
@@ -873,7 +903,8 @@ export class Webpage extends Attachment
 						this.markBrokenMediaElement(mediaEl, rawSrc);
 						continue;
 					}
-					mediaEl.setAttribute("src", await this.maybeCompressDataUri(dataUri));
+					const compressed = await this.maybeCompressDataUri(dataUri);
+					this.applyInlineMedia(mediaEl, `url:${rawSrc}`, compressed);
 					continue;
 				}
 
@@ -902,8 +933,12 @@ export class Webpage extends Attachment
 
 				if (ext === "svg") ext += "+xml";
 
-				const dataUri = `data:${type}/${ext};base64,${base64}`;
-				mediaEl.setAttribute("src", await this.maybeCompressDataUri(dataUri));
+				const dataUri = await this.maybeCompressDataUri(`data:${type}/${ext};base64,${base64}`);
+				const vaultFile = app.vault.getFileByPath(filePath.pathname);
+				const key = vaultFile
+					? `vault:${vaultFile.path}`
+					: `path:${filePath.pathname || filePath.path}`;
+				this.applyInlineMedia(mediaEl, key, dataUri);
 			}
 			catch (error)
 			{

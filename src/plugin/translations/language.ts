@@ -30,6 +30,14 @@ export interface i18n
 		exportAsTitle: string;
 		moreOptions: string;
 		openAfterExport: string;
+		imageCompression: {
+			title: string;
+			description: string;
+			none: string;
+			low: string;
+			medium: string;
+			high: string;
+		};
 		exportButton: string;
 		filePicker: 
 		{
@@ -209,6 +217,14 @@ export interface i18n
 		slugifyPaths: {
 			title: string;
 			description: string;
+		},
+		imageCompression: {
+			title: string;
+			description: string;
+			none: string;
+			low: string;
+			medium: string;
+			high: string;
 		},
 		addPageIcon: {
 			title: string;

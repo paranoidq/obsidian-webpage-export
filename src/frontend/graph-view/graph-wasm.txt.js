@@ -232,11 +232,30 @@ function getBinaryPromise(binaryFile)
 			window.addEventListener('DOMContentLoaded', () => 
 			{
 				const dataEl = document.getElementById(id);
-				if (dataEl)
-				{
-					const data = Uint8Array.from(Array.from(atob(JSON.parse(decodeURI(atob(dataEl.value))).data)).map(s => s.charCodeAt(0)));
-					resolve(data);
-				}
+				if (!dataEl) return;
+				(async () => {
+					try {
+						const raw = dataEl.value || "";
+						let parsed;
+						if (raw.indexOf("gz1.") === 0) {
+							const b64 = raw.slice(4);
+							const bin = atob(b64);
+							const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+							const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+							parsed = JSON.parse(await new Response(stream).text());
+						} else if (raw.indexOf("u8.") === 0) {
+							const b64 = raw.slice(3);
+							const bin = atob(b64);
+							parsed = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0))));
+						} else {
+							parsed = JSON.parse(decodeURI(atob(raw)));
+						}
+						const data = Uint8Array.from(Array.from(atob(parsed.data)).map(s => s.charCodeAt(0)));
+						resolve(data);
+					} catch (e) {
+						reject(e);
+					}
+				})();
 			});
 		});
 	}

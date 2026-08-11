@@ -25,6 +25,14 @@ export const language: i18n =
 		exportAsTitle: "Exportar {0} como HTML",
 		moreOptions: "Mais opções disponíveis na página de configurações do plugin.",
 		openAfterExport: "Abrir após exportar",
+		imageCompression: {
+			title: "Image compression",
+			description: "How strongly to compress inlined images. Medium and below stay sharp.",
+			none: "None",
+			low: "Low",
+			medium: "Medium",
+			high: "High (images may look distorted)",
+		},
 		exportButton: "Exportar",
 		filePicker: 
 		{
@@ -204,6 +212,14 @@ export const language: i18n =
 		slugifyPaths: {
 			title: "Slugificar Caminhos",
 			description: "Transformar caminhos e nomes de arquivos para formato web (minúsculo, sem espaços)",
+		},
+		imageCompression: {
+			title: "Image compression",
+			description: "How strongly to compress inlined images. Medium and below stay sharp.",
+			none: "None",
+			low: "Low",
+			medium: "Medium",
+			high: "High (images may look distorted)",
 		},
 		addPageIcon: {
 			title: "Adicionar Ícone à Página",

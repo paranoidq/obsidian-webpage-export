@@ -25,6 +25,14 @@ export const language: i18n =
 		exportAsTitle: "将 {0} 导出为HTML",
 		moreOptions: "更多选项请查看插件设置页面。",
 		openAfterExport: "导出后打开",
+		imageCompression: {
+			title: "图片压缩率",
+			description: "内联图片的压缩强度。中及以下保持清晰不失真。",
+			none: "不压缩",
+			low: "低",
+			medium: "中",
+			high: "高（图片可能会失真）",
+		},
 		exportButton: "导出",
 		filePicker:
 		{
@@ -204,6 +212,14 @@ export const language: i18n =
 		slugifyPaths: {
 			title: "路径别名化",
 			description: "使所有路径和文件名符合网络风格（小写，无空格）",
+		},
+		imageCompression: {
+			title: "图片压缩率",
+			description: "内联图片的压缩强度。中及以下保持清晰不失真。",
+			none: "不压缩",
+			low: "低",
+			medium: "中",
+			high: "高（图片可能会失真）",
 		},
 		addPageIcon: {
 			title: "添加页面图标",

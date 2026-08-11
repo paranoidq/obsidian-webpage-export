@@ -27,6 +27,12 @@ import { BacklinkList } from "./backlinks";
 import { Tags } from "./tags";
 import { Aliases } from "./aliases";
 import { initFullscreenControl } from "./fullscreen";
+import { initPrintSupport } from "./print-support";
+import {
+	decodeMetadataPayload,
+	hydrateInlineMedia,
+	INLINE_MEDIA_REGISTRY_ID,
+} from "./metadata-codec";
 
 type Constructor<T> = new () => T;
 
@@ -71,6 +77,13 @@ export class ObsidianWebsite {
 
 	public entryPage: string;
 
+	/** Decoded local <data> payloads (supports gz1. async decode). */
+	private localDataCache: Map<string, any> = new Map();
+	/** Inline media registry map (key -> data URI). */
+	public inlineMediaRegistry: Record<string, string> = {};
+	/** Shell page HTML when webpageInfo.data is omitted to save space. */
+	private shellPageHtmlCache: Map<string, string> = new Map();
+
 	private onloadCallbacks: ((document: ObsidianDocument) => void)[] = [];
 	public onDocumentLoad(callback: (document: ObsidianDocument) => void) {
 		this.onloadCallbacks.push(callback);
@@ -99,6 +112,9 @@ export class ObsidianWebsite {
 		}
 
 		await waitUntil(() => this.metadata != undefined, 16);
+
+		// Hydrate inlined media before any document interaction / ImageViewer.
+		await this.ensureInlineMediaHydrated(document);
 
 		console.log("Website init");
 		if (window.location.protocol != "file:") {
@@ -135,6 +151,7 @@ export class ObsidianWebsite {
 		if (rightSidebarEl) this.rightSidebar = new Sidebar(rightSidebarEl);
 		this.search = await new Search().init();
 		initFullscreenControl();
+		initPrintSupport();
 
 		const pathname =
 			document
@@ -145,6 +162,7 @@ export class ObsidianWebsite {
 		this.document = await new ObsidianDocument(pathname);
 		await this.document.loadChildDocuments();
 		await this.document.postLoadInit();
+		this.cacheShellDocumentHtml();
 
 		if (
 			!ObsidianSite.metadata.ignoreMetadata &&
@@ -426,12 +444,16 @@ export class ObsidianWebsite {
 			}
 		} else {
 			const file = this.getFileData(url);
-			if (!file?.data) {
+			let data = file?.data as string | null | undefined;
+			if (!data) {
+				data = this.shellPageHtmlCache.get(url);
+			}
+			if (!data) {
 				console.error("Failed to fetch", url);
 				return;
 			}
 
-			const req = new Response(file.data, { status: 200 });
+			const req = new Response(data, { status: 200 });
 			return req;
 		}
 	}
@@ -441,7 +463,7 @@ export class ObsidianWebsite {
 		if (this.isHttp) {
 			return !!this.metadata.webpages[url];
 		} else {
-			return !!this.getFileData(url)?.data;
+			return !!(this.getFileData(url)?.data || this.shellPageHtmlCache.has(url) || this.getWebpageData(url));
 		}
 	}
 
@@ -469,12 +491,94 @@ export class ObsidianWebsite {
 				new Notice("Failed to load website metadata.");
 			}
 		} else {
-			const jsonData = this.getLocalDataFromId("website-metadata");
+			await this.preloadAllLocalData();
+			const jsonData = this.localDataCache.get("website-metadata");
 			return jsonData
 				? WebsiteData.fromJSON(JSON.stringify(jsonData))
 				: undefined;
 		}
 		return undefined;
+	}
+
+	private async preloadAllLocalData(): Promise<void> {
+		const els = Array.from(document.querySelectorAll("data[id][value]"));
+		for (const el of els) {
+			const id = el.id;
+			const encoded = el.getAttribute("value") ?? "";
+			if (!id || !encoded) continue;
+			if (this.localDataCache.has(id)) continue;
+			try {
+				const decoded = await decodeMetadataPayload(encoded);
+				this.localDataCache.set(id, decoded);
+				if (id === INLINE_MEDIA_REGISTRY_ID && decoded && typeof decoded === "object") {
+					this.inlineMediaRegistry = decoded as Record<string, string>;
+					(window as any).__INLINE_MEDIA__ = this.inlineMediaRegistry;
+				}
+			} catch (e) {
+				console.error("Failed to decode local data", id, e);
+			}
+		}
+	}
+
+	public async ensureInlineMediaHydrated(root: ParentNode = document): Promise<void> {
+		const pending = (window as any).__MEDIA_HYDRATE_PROMISE as Promise<void> | undefined;
+		if (pending) {
+			try { await pending; } catch { /* fall through */ }
+		}
+		if (!Object.keys(this.inlineMediaRegistry).length) {
+			const el = document.getElementById(INLINE_MEDIA_REGISTRY_ID);
+			const encoded = el?.getAttribute("value");
+			if (encoded) {
+				try {
+					this.inlineMediaRegistry = (await decodeMetadataPayload(encoded)) as Record<string, string>;
+					(window as any).__INLINE_MEDIA__ = this.inlineMediaRegistry;
+				} catch (e) {
+					console.error("Failed to decode inline media registry", e);
+				}
+			}
+		}
+		hydrateInlineMedia(root, this.inlineMediaRegistry);
+	}
+
+	private cacheShellDocumentHtml(): void {
+		const docEl = document.querySelector(".obsidian-document");
+		if (!docEl) return;
+		const pathname =
+			document
+				.querySelector("meta[name='pathname']")
+				?.getAttribute("content") ?? this.entryPage;
+		if (!pathname || pathname === "unknown") return;
+		const html = `<!DOCTYPE html><html><body>${docEl.outerHTML}</body></html>`;
+		this.shellPageHtmlCache.set(pathname, html);
+		// Also cache common path variants used by the link handler.
+		const trimmed = pathname.replace(/^\.\//, "");
+		if (trimmed !== pathname) this.shellPageHtmlCache.set(trimmed, html);
+	}
+
+	public getLocalDataFromId(id: string): any | undefined {
+		if (this.localDataCache.has(id)) {
+			return this.localDataCache.get(id);
+		}
+		const el = document.getElementById(id);
+		if (!el) return;
+		const encoded = el.getAttribute("value") ?? "";
+		try {
+			// Sync path: u8. / legacy only. gz1. should already be in cache after preload.
+			if (encoded.startsWith("gz1.")) {
+				return undefined;
+			}
+			const decoded = JSON.parse(
+				encoded.startsWith("u8.")
+					? new TextDecoder().decode(
+							Uint8Array.from(atob(encoded.slice(3)), (c) => c.charCodeAt(0))
+					  )
+					: decodeURI(atob(encoded))
+			);
+			this.localDataCache.set(id, decoded);
+			return decoded;
+		} catch {
+			return undefined;
+		}
 	}
 
 	private async loadGraphView() {
@@ -511,12 +615,6 @@ export class ObsidianWebsite {
 		});
 
 		await waitUntil(() => this.graphView != undefined);
-	}
-
-	public getLocalDataFromId(id: string): any | undefined {
-		const el = document.getElementById(id);
-		if (!el) return;
-		return JSON.parse(decodeURI(atob(el.getAttribute("value") ?? "")));
 	}
 
 	private cachedWebpageDataMap: Map<string, WebpageData> = new Map();
