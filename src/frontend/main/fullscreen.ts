@@ -8,6 +8,7 @@ const ZOOM_STEP = 0.1;
 const DEFAULT_ZOOM = 1;
 
 let pageZoom = DEFAULT_ZOOM;
+let zoomSuspended = false;
 let zoomControlsEl: HTMLElement | null = null;
 let zoomLabelEl: HTMLElement | null = null;
 let fullscreenButton: HTMLElement | null = null;
@@ -59,8 +60,22 @@ function getZoomTarget(): HTMLElement | null
 	return document.querySelector("#center-content") as HTMLElement | null;
 }
 
+function clearZoomStyles(): void
+{
+	const target = getZoomTarget();
+	if (!target) return;
+
+	target.style.removeProperty("zoom");
+	target.style.removeProperty("transform");
+	target.style.removeProperty("transform-origin");
+	target.style.removeProperty("width");
+	target.style.removeProperty("height");
+}
+
 function applyPageZoom(): void
 {
+	if (zoomSuspended) return;
+
 	const target = getZoomTarget();
 	if (!target) return;
 
@@ -100,18 +115,31 @@ function resetPageZoom(): void
 	document.documentElement.style.removeProperty("--export-page-zoom");
 	document.documentElement.style.removeProperty("zoom");
 
-	const target = getZoomTarget();
-	if (target)
-	{
-		target.style.removeProperty("zoom");
-		target.style.removeProperty("transform");
-		target.style.removeProperty("transform-origin");
-		target.style.removeProperty("width");
-		target.style.removeProperty("height");
-	}
+	clearZoomStyles();
 
 	if (zoomLabelEl)
 		zoomLabelEl.textContent = "100%";
+}
+
+/**
+ * The printed page must not inherit the on-screen zoom, so drop it while the
+ * print layout is generated and put it back once the reader is done.
+ */
+export function suspendPageZoomForPrint(): void
+{
+	if (zoomSuspended) return;
+	zoomSuspended = true;
+
+	document.documentElement.style.removeProperty("--export-page-zoom");
+	clearZoomStyles();
+}
+
+export function restorePageZoomAfterPrint(): void
+{
+	if (!zoomSuspended) return;
+	zoomSuspended = false;
+
+	if (isFullscreen()) applyPageZoom();
 }
 
 function ensureZoomControls(): HTMLElement

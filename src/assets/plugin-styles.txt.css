@@ -666,39 +666,234 @@ body.is-phone {
 
 /*#region Media Queries */
 
+@page {
+	margin: 14mm 12mm;
+}
+
+/* The exported page is an app shell: fixed viewport height, scrolling panes and
+   floating controls. None of that paginates, so printing turns it back into a
+   plain flowing document sized for paper. */
 @media print {
-	html body.publish :is(.sidebar, script, style, include) {
+
+	/*--- Layout: unwrap the shell so the article flows across pages ---*/
+
+	html,
+	html body {
+		display: block !important;
+		width: auto !important;
+		height: auto !important;
+		min-height: 0 !important;
+		max-height: none !important;
+		overflow: visible !important;
+		background: transparent !important;
+	}
+
+	html body :is(#main, #main-horizontal, #center-content),
+	html body #center-content>.obsidian-document {
+		display: block !important;
+		width: auto !important;
+		max-width: none !important;
+		height: auto !important;
+		max-height: none !important;
+		overflow: visible !important;
+		contain: none !important;
+		margin: 0 !important;
+		padding: 0 !important;
+		border-radius: 0 !important;
+		background: transparent !important;
+	}
+
+	html body #center-content>.obsidian-document>.markdown-preview-sizer {
+		width: 100% !important;
+		max-width: none !important;
+		flex-basis: auto !important;
+		min-height: 0 !important;
+		margin: 0 !important;
+		padding: 0 !important;
+		contain: none !important;
+	}
+
+	/* the on-screen fullscreen zoom must not scale the printed page */
+	html body #center-content {
+		zoom: 1 !important;
+		transform: none !important;
+	}
+
+	/*--- Only the article is printed, never the surrounding interface ---*/
+
+	html body :is(.sidebar,
+		#left-content,
+		#right-content,
+		#navbar,
+		.sidebar-topbar,
+		.sidebar-handle,
+		.fullscreen-zoom-controls,
+		.image-lightbox,
+		.image-lightbox-toolbar,
+		.loading-icon,
+		.graph-view-container,
+		#search-results,
+		.code-block-header,
+		.copy-code-button,
+		.collapse-indicator,
+		.heading-collapse-indicator,
+		.list-collapse-indicator,
+		script,
+		style,
+		include) {
 		display: none !important;
 	}
 
-	:root,
-	html body.publish> :is(#main-horizontal, #center-content, .obsidian-document):not(script, style, include) {
-		display: contents !important;
+	/* long code blocks are folded automatically on screen, print their contents */
+	.code-block-wrapper.is-collapsed>pre {
+		display: block !important;
+		height: auto !important;
+		overflow: visible !important;
 	}
 
-	:root,
-	html body.publish #center-content>.obsidian-document {
-		background-color: transparent !important;
+	/*--- Typography: paper-sized type so a page holds a useful amount of text ---*/
+
+	html body {
+		--font-text-size: 10.5pt !important;
+		--font-ui-small: 9pt !important;
+		--code-size: 0.85em !important;
+		--line-height-normal: 1.45 !important;
+		--line-height-tight: 1.3 !important;
+		--file-line-width: 100% !important;
+		--line-width: 100% !important;
+		--line-width-adaptive: 100% !important;
+		--file-margins: 0 !important;
+		font-size: var(--font-text-size) !important;
+		line-height: var(--line-height-normal) !important;
 	}
 
-	body {
-		display: inline !important;
-		background: var(--background-primary);
+	.obsidian-document,
+	.obsidian-document :is(p, li, td, th, blockquote) {
+		font-size: var(--font-text-size);
+		line-height: var(--line-height-normal) !important;
 	}
 
-	body #center-content>.obsidian-document>.markdown-preview-sizer {
-		padding: 0;
-		margin: 0;
-		padding: var(--file-margins);
-		padding-bottom: 0;
+	.obsidian-document :is(p, ul, ol, blockquote, table, pre, .callout, .code-block-wrapper) {
+		margin-top: 0.45em !important;
+		margin-bottom: 0.45em !important;
 	}
 
-	html body.publish :is(#center-content, .obsidian-document) {
-		margin: 0 !important;
-		padding: 0 !important;
+	.obsidian-document :is(h1, h2, h3, h4, h5, h6) {
+		margin-top: 0.8em !important;
+		margin-bottom: 0.3em !important;
+		line-height: 1.25 !important;
+		break-after: avoid-page;
+		break-inside: avoid;
 	}
 
+	.obsidian-document h1 {
+		font-size: 1.6em !important;
+	}
 
+	.obsidian-document h2 {
+		font-size: 1.35em !important;
+	}
+
+	.obsidian-document h3 {
+		font-size: 1.18em !important;
+	}
+
+	.obsidian-document h4 {
+		font-size: 1.05em !important;
+	}
+
+	.obsidian-document :is(h5, h6) {
+		font-size: 1em !important;
+	}
+
+	.obsidian-document :is(p, li, blockquote) {
+		orphans: 2;
+		widows: 2;
+	}
+
+	/*--- Media: capped at the page width, otherwise left at natural size ---*/
+
+	.obsidian-document :is(img, video, canvas, embed, object, iframe) {
+		max-width: 100% !important;
+		height: auto !important;
+		break-inside: avoid;
+	}
+
+	.obsidian-document :is(.internal-embed, .image-embed, figure, .mermaid, .excalidraw-svg, .excalidraw-plugin, [class^="block-language-"]) {
+		max-width: 100% !important;
+		overflow: visible !important;
+		break-inside: avoid;
+	}
+
+	.obsidian-document :is(.mermaid, .excalidraw-svg, .excalidraw-plugin, [class^="block-language-"]) svg,
+	.obsidian-document :is(p, li, td, div)>svg {
+		max-width: 100% !important;
+		height: auto !important;
+	}
+
+	/*--- Code: wrap instead of scrolling so nothing is cut off at the margin ---*/
+
+	.obsidian-document :is(pre, pre>code) {
+		white-space: pre-wrap !important;
+		word-break: break-word !important;
+		overflow-wrap: anywhere !important;
+		overflow: visible !important;
+		max-width: 100% !important;
+		max-height: none !important;
+	}
+
+	.obsidian-document pre {
+		font-size: 0.8em !important;
+		line-height: 1.35 !important;
+		padding: 0.5em 0.7em !important;
+		border: 1px solid var(--background-modifier-border, #cccccc) !important;
+		border-radius: var(--radius-s, 4px) !important;
+	}
+
+	/*--- Tables and other wide content ---*/
+
+	.obsidian-document table {
+		width: 100% !important;
+		max-width: 100% !important;
+		table-layout: fixed;
+		font-size: 0.9em !important;
+	}
+
+	.obsidian-document :is(th, td) {
+		word-break: break-word;
+		overflow-wrap: anywhere;
+	}
+
+	.obsidian-document thead {
+		display: table-header-group;
+	}
+
+	.obsidian-document tr {
+		break-inside: avoid;
+	}
+
+	/* horizontal scroll containers clip their overflow when printed */
+	.obsidian-document .table-wrapper,
+	.obsidian-document :not(h1, h2, h3, h4, h5, h6, li):has(> :is(.math, table)) {
+		overflow: visible !important;
+	}
+
+	/*--- Dark themes: browsers drop background colors, so print a light palette ---*/
+
+	html body.theme-dark {
+		--background-primary: #ffffff;
+		--background-primary-alt: #ffffff;
+		--background-secondary: #f7f7f7;
+		--background-secondary-alt: #efefef;
+		--background-modifier-border: #cccccc;
+		--text-normal: #1a1a1a;
+		--text-muted: #444444;
+		--text-faint: #666666;
+		--text-accent: #14538c;
+		--text-on-accent: #ffffff;
+		--hr-color: #cccccc;
+		color: #1a1a1a !important;
+	}
 }
 
 /*#endregion  */

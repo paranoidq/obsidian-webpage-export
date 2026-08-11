@@ -10,9 +10,10 @@ body
     --sidebar-margin: 12px;
 }
 
+/* Shown before the theme background is applied, so keep it light. */
 :root
 {
-    background-color: #202124;
+    background-color: #ffffff;
 }
 
 /*#region Sidebars */
