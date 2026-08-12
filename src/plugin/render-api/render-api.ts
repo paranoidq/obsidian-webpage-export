@@ -452,6 +452,30 @@ export namespace _MarkdownRendererInternal {
 		const existing = root.querySelector(`[data-excalidraw-export="${escaped}"]`) as HTMLElement | null;
 		if (existing) return existing;
 
+		// Prefer replacing Obsidian's leftover embed/img for this drawing (often a broken <img>).
+		const leftovers = findLeftoverExcalidrawHosts(root, file, sourceFile);
+		if (leftovers.length > 0)
+		{
+			let host = leftovers[0];
+			// <img> cannot host child export nodes — swap for a slot div.
+			if (/^(IMG|VIDEO|AUDIO|EMBED|SOURCE)$/i.test(host.tagName))
+			{
+				const replacement = document.createElement("div");
+				replacement.className = "internal-embed excalidraw-export-slot";
+				replacement.setAttribute("data-excalidraw-export", file.path);
+				host.replaceWith(replacement);
+				host = replacement;
+			}
+			else
+			{
+				host.classList.add("internal-embed", "excalidraw-export-slot");
+				host.setAttribute("data-excalidraw-export", file.path);
+			}
+			for (let i = 1; i < leftovers.length; i++) leftovers[i].remove();
+			ExportLog.log(`Reusing leftover Excalidraw embed host for ${file.path}`);
+			return host;
+		}
+
 		const slot = document.createElement("div");
 		slot.className = "internal-embed excalidraw-export-slot";
 		slot.setAttribute("data-excalidraw-export", file.path);
@@ -480,6 +504,87 @@ export namespace _MarkdownRendererInternal {
 		root.appendChild(slot);
 		ExportLog.warning(`Excalidraw slot appended at end for ${file.path}`);
 		return slot;
+	}
+
+	function excalidrawMatchNeedles(file: TFile): string[]
+	{
+		return [
+			file.path,
+			file.name,
+			file.basename,
+			file.basename.replace(/\.excalidraw$/i, ""),
+		].filter(Boolean);
+	}
+
+	function attrLooksLikeExcalidrawFile(attr: string | null | undefined, file: TFile): boolean
+	{
+		if (!attr) return false;
+		let decoded = attr;
+		try { decoded = decodeURIComponent(attr); } catch { /* keep raw */ }
+		return excalidrawMatchNeedles(file).some((needle) => decoded.includes(needle));
+	}
+
+	function findLeftoverExcalidrawHosts(root: HTMLElement, file: TFile, sourceFile: TFile): HTMLElement[]
+	{
+		const hosts = new Set<HTMLElement>();
+		const candidates = Array.from(root.querySelectorAll(
+			[
+				".internal-embed",
+				".markdown-embed",
+				".media-embed",
+				"img[src]",
+				"img[data-broken-src]",
+				"img.is-broken-image",
+				"img.excalidraw-embedded-img",
+				"img[filesource]",
+				".excalidraw-svg",
+			].join(", ")
+		)) as HTMLElement[];
+
+		for (const el of candidates)
+		{
+			// Keep our injected export; remove native preview leftovers.
+			if (el.matches("[data-export-excalidraw='1'], .excalidraw-export-img, .excalidraw-export-slot")) continue;
+			if (el.closest("[data-export-excalidraw='1'], .excalidraw-export-slot")) continue;
+			if (el.getAttribute("data-excalidraw-export") === file.path) continue;
+
+			const resolved = getFallbackEmbedFile(el, sourceFile);
+			const matched =
+				resolved?.path === file.path ||
+				attrLooksLikeExcalidrawFile(el.getAttribute("src"), file) ||
+				attrLooksLikeExcalidrawFile(el.getAttribute("filesource"), file) ||
+				attrLooksLikeExcalidrawFile(el.getAttribute("data-broken-src"), file) ||
+				attrLooksLikeExcalidrawFile(el.getAttribute("alt"), file) ||
+				attrLooksLikeExcalidrawFile(el.querySelector("img[filesource]")?.getAttribute("filesource"), file) ||
+				attrLooksLikeExcalidrawFile(el.querySelector(".markdown-embed-link")?.getAttribute("href"), file) ||
+				attrLooksLikeExcalidrawFile(el.querySelector(".markdown-embed-link")?.getAttribute("data-href"), file) ||
+				attrLooksLikeExcalidrawFile(el.querySelector(".markdown-embed-title")?.textContent, file) ||
+				(el.classList.contains("excalidraw-embedded-img") &&
+					attrLooksLikeExcalidrawFile(el.getAttribute("filesource"), file)) ||
+				((el.textContent ?? "").includes(EXCALIDRAW_FALLBACK_MARKER) &&
+					attrLooksLikeExcalidrawFile(el.querySelector(".markdown-embed-title")?.textContent ?? el.getAttribute("src"), file));
+
+			if (!matched) continue;
+
+			// Prefer the wrapper Excalidraw injects around its blob preview image.
+			const host = (el.closest(
+				".excalidraw-svg:not(.excalidraw-export-img), .internal-embed, .markdown-embed, .media-embed"
+			) as HTMLElement | null) ?? el;
+			if (host.closest("[data-export-excalidraw='1'], .excalidraw-export-slot")) continue;
+			hosts.add(host);
+		}
+
+		return Array.from(hosts);
+	}
+
+	function removeLeftoverExcalidrawHosts(root: HTMLElement, file: TFile, sourceFile: TFile, keep: HTMLElement): void
+	{
+		for (const host of findLeftoverExcalidrawHosts(root, file, sourceFile))
+		{
+			if (host === keep || keep.contains(host) || host.contains(keep)) continue;
+			host.remove();
+			ExportLog.log(`Removed leftover Excalidraw DOM node for ${file.path}`);
+		}
 	}
 
 	function getExcalidrawAutomate(): any | undefined
@@ -946,6 +1051,7 @@ export namespace _MarkdownRendererInternal {
 		for (const file of metaFiles)
 		{
 			const target = await ensureExcalidrawSlot(root, file, sourceFile);
+			removeLeftoverExcalidrawHosts(root, file, sourceFile, target);
 			if (target.querySelector("[data-export-excalidraw='1']")) continue;
 
 			const element = await renderExcalidrawExportElement(file, sourceFile);
@@ -956,6 +1062,16 @@ export namespace _MarkdownRendererInternal {
 			}
 
 			applyExcalidrawExportToEmbed(target, element);
+			removeLeftoverExcalidrawHosts(root, file, sourceFile, target);
+			// Final sweep: any native Excalidraw blob preview for this drawing.
+			const escaped = escapeAttrSelectorValue(file.path);
+			root.querySelectorAll(`img.excalidraw-embedded-img[filesource="${escaped}"], img[filesource="${escaped}"]`).forEach((img) => {
+				if (img.closest(".excalidraw-export-slot, [data-export-excalidraw='1']")) return;
+				const host = (img.closest(".excalidraw-svg, .internal-embed, .media-embed") as HTMLElement | null) ?? img;
+				if (host === target || target.contains(host)) return;
+				host.remove();
+				ExportLog.log(`Swept native Excalidraw preview for ${file.path}`);
+			});
 			ExportLog.log(`Injected Excalidraw export into DOM for ${file.path}`);
 		}
 

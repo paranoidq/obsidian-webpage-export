@@ -951,16 +951,40 @@ img, video, audio, canvas`).forEach((heading) => heading.remove());
 
 	private async inlineMedia()
 	{
-		// Avoid walking Excalidraw SVG internals (image href/data URIs).
+		// Skip finished exports / plugin chrome, but still catch native Excalidraw
+		// preview blobs (.excalidraw-embedded-img with dead blob: URLs).
 		const elements = Array.from(this.pageDocument.querySelectorAll(
 			".obsidian-document img[src], .obsidian-document video[src], .obsidian-document audio[src], .obsidian-document source[src], .obsidian-document embed[src]"
-		)).filter((el) => !el.closest("head, .excalidraw-svg, .excalidraw-plugin"));
+		)).filter((el) => {
+			if (el.closest("head, .excalidraw-plugin")) return false;
+			if (el.matches("[data-export-excalidraw='1'], .excalidraw-export-img")) return false;
+			if (el.closest(".excalidraw-export-slot, [data-export-excalidraw='1']")) return false;
+			if (el.matches(".excalidraw-embedded-img, [filesource]")) return true;
+			if (el.closest(".excalidraw-svg")) return false;
+			return true;
+		});
 		for (const mediaEl of elements)
 		{
 			try
 			{
 				const rawSrc = mediaEl.getAttribute("src") ?? "";
 				if (!rawSrc) continue;
+
+				const fileSource = mediaEl.getAttribute("filesource") ?? "";
+				const isNativeExcalidrawPreview =
+					mediaEl.classList.contains("excalidraw-embedded-img") ||
+					/\.excalidraw/i.test(fileSource) ||
+					/\.excalidraw/i.test(rawSrc) ||
+					/\.drawing(\b|$)/i.test(rawSrc);
+
+				if (isNativeExcalidrawPreview)
+				{
+					const host = (mediaEl.closest(".excalidraw-svg, .internal-embed, .markdown-embed, .media-embed") as HTMLElement | null) ?? mediaEl;
+					if (host.querySelector("[data-export-excalidraw='1']") || host.classList.contains("excalidraw-export-slot")) continue;
+					ExportLog.log(`Removing native Excalidraw preview media: ${(fileSource || rawSrc).slice(0, 160)}`);
+					host.remove();
+					continue;
+				}
 
 				if (rawSrc.startsWith("blob:"))
 				{
@@ -1004,6 +1028,19 @@ img, video, audio, canvas`).forEach((heading) => heading.remove());
 				if (rawSrc.startsWith("data:")) continue;
 
 				const filePath = this.website.getFilePathFromSrc(rawSrc, this.source.path);
+				const vaultFileEarly = !filePath.isEmpty
+					? app.vault.getFileByPath(filePath.pathname)
+					: null;
+				if (vaultFileEarly && MarkdownRendererAPI.isExcalidrawFile(vaultFileEarly))
+				{
+					if (mediaEl.matches("[data-export-excalidraw='1'], .excalidraw-export-img")) continue;
+					const host = (mediaEl.closest(".internal-embed, .markdown-embed, .media-embed, .excalidraw-svg") as HTMLElement | null) ?? mediaEl;
+					if (host.querySelector("[data-export-excalidraw='1']")) continue;
+					ExportLog.log(`Removing leftover Excalidraw media file node: ${vaultFileEarly.path}`);
+					host.remove();
+					continue;
+				}
+
 				if (filePath.isEmpty || filePath.isDirectory || filePath.isAbsolute) continue;
 
 				const base64 = await filePath.readAsString("base64");
