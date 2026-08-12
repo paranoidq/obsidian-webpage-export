@@ -24,6 +24,42 @@ export interface i18n
 	updateAvailable: string;
 	exportAsHTML: string;
 	exportFileWithLinkedAsHTML: string;
+	compressFolderAndExport: string;
+	folderZipExportModal:
+	{
+		title: string;
+		exportAsTitle: string;
+		compression: {
+			title: string;
+			description: string;
+			low: string;
+			medium: string;
+			high: string;
+		};
+		splitVolume: {
+			title: string;
+			description: string;
+		};
+		exportPath: {
+			title: string;
+			description: string;
+		};
+		exportButton: string;
+		openAfterExport: string;
+		progress: {
+			collecting: string;
+			addingFile: string;
+			compressing: string;
+			writing: string;
+			writingVolume: string;
+			done: string;
+		};
+		success: string;
+		successSplit: string;
+		failed: string;
+		emptyFolder: string;
+		invalidSplitVolume: string;
+	};
 	exportModal: 
 	{
 		title: string;

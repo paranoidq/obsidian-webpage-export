@@ -19,6 +19,42 @@ export const language: i18n =
 	updateAvailable: "有更新可用",
 	exportAsHTML: "导出为HTML",
 	exportFileWithLinkedAsHTML: "将文件和关联文件导出为html",
+	compressFolderAndExport: "将文件夹压缩并导出",
+	folderZipExportModal:
+	{
+		title: "将文件夹压缩并导出",
+		exportAsTitle: "压缩并导出 {0}",
+		compression: {
+			title: "压缩率",
+			description: "ZIP 压缩强度。越高体积越小，耗时可能更长。",
+			low: "低",
+			medium: "中",
+			high: "高",
+		},
+		splitVolume: {
+			title: "自动分卷（MB）",
+			description: "压缩包超过该大小后自动分卷。设为 0 表示不分卷。默认 9。",
+		},
+		exportPath: {
+			title: "导出路径",
+			description: "选择保存目录，文件名使用文件夹名称。",
+		},
+		exportButton: "导出",
+		openAfterExport: "导出后打开文件夹",
+		progress: {
+			collecting: "正在收集文件…",
+			addingFile: "正在添加文件 ({0}/{1})：{2}",
+			compressing: "正在压缩…",
+			writing: "正在写入：{0}",
+			writingVolume: "正在写入分卷 ({0}/{1})：{2}",
+			done: "导出完成",
+		},
+		success: "已导出到 {0}",
+		successSplit: "已导出到 {0}（共 {1} 卷）",
+		failed: "导出失败：{0}",
+		emptyFolder: "该文件夹没有可导出的文件。",
+		invalidSplitVolume: "请输入大于等于 0 的数字",
+	},
 	exportModal:
 	{
 		title: "导出为HTML",

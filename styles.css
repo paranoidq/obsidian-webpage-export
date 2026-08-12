@@ -301,3 +301,56 @@ details.settings-section[open] > summary > svg
 {
 	rotate: 90deg;
 }
+
+/* Folder zip export modal: stacked export path (title / hint / wide input row) */
+.folder-zip-export-path
+{
+	display: flex;
+	flex-direction: column;
+	gap: 0.35em;
+	margin: 0.75em 0 0.25em;
+	width: 100%;
+}
+
+.folder-zip-export-path-title
+{
+	font-weight: var(--font-medium);
+}
+
+.folder-zip-export-path-hint
+{
+	margin-bottom: 0.15em;
+}
+
+.folder-zip-export-path-row.setting-item
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 0;
+	border: none;
+	width: 100%;
+}
+
+.folder-zip-export-path-row .setting-item-info
+{
+	display: none;
+}
+
+.folder-zip-export-path-row .setting-item-control
+{
+	display: flex;
+	flex: 1 1 auto;
+	width: 100%;
+	justify-content: stretch;
+	align-items: center;
+	gap: 0.5em;
+}
+
+.folder-zip-export-path-row .setting-item-control input[type="text"],
+.folder-zip-export-path-input
+{
+	flex: 1 1 auto;
+	width: 100% !important;
+	min-width: 0;
+}

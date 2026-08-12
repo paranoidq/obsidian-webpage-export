@@ -19,6 +19,42 @@ export const language: i18n =
 	updateAvailable: "Update Available",
 	exportAsHTML: "Export as HTML",
 	exportFileWithLinkedAsHTML: "Export file and linked files as HTML",
+	compressFolderAndExport: "Compress and export folder",
+	folderZipExportModal:
+	{
+		title: "Compress and export folder",
+		exportAsTitle: "Compress and export {0}",
+		compression: {
+			title: "Compression level",
+			description: "ZIP compression strength. Higher is smaller but may take longer.",
+			low: "Low",
+			medium: "Medium",
+			high: "High",
+		},
+		splitVolume: {
+			title: "Split volume (MB)",
+			description: "Split the archive automatically when it exceeds this size. Use 0 to disable. Default 9.",
+		},
+		exportPath: {
+			title: "Export path",
+			description: "Choose the destination folder. The archive is named after the selected folder.",
+		},
+		exportButton: "Export",
+		openAfterExport: "Open folder after export",
+		progress: {
+			collecting: "Collecting files…",
+			addingFile: "Adding file ({0}/{1}): {2}",
+			compressing: "Compressing…",
+			writing: "Writing: {0}",
+			writingVolume: "Writing volume ({0}/{1}): {2}",
+			done: "Export complete",
+		},
+		success: "Exported to {0}",
+		successSplit: "Exported to {0} ({1} volumes)",
+		failed: "Export failed: {0}",
+		emptyFolder: "This folder has no files to export.",
+		invalidSplitVolume: "Enter a number greater than or equal to 0",
+	},
 	exportModal: 
 	{
 		title: "Export to HTML",

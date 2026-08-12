@@ -18,6 +18,42 @@ export const language: i18n =
 	updateAvailable: "Aggiornamento disponibile",
 	exportAsHTML: "Esporta come HTML",
 	exportFileWithLinkedAsHTML: "Esporta file e file collegati come HTML",
+	compressFolderAndExport: "Comprimi ed esporta cartella",
+	folderZipExportModal:
+	{
+		title: "Comprimi ed esporta cartella",
+		exportAsTitle: "Comprimi ed esporta {0}",
+		compression: {
+			title: "Livello di compressione",
+			description: "Intensità di compressione ZIP. Più alto = più piccolo, ma può richiedere più tempo.",
+			low: "Basso",
+			medium: "Medio",
+			high: "Alto",
+		},
+		splitVolume: {
+			title: "Volume diviso (MB)",
+			description: "Dividi automaticamente l'archivio se supera questa dimensione. Usa 0 per disabilitare. Predefinito 9.",
+		},
+		exportPath: {
+			title: "Percorso di esportazione",
+			description: "Scegli la cartella di destinazione. L'archivio prende il nome dalla cartella selezionata.",
+		},
+		exportButton: "Esporta",
+		openAfterExport: "Apri cartella dopo l'esportazione",
+		progress: {
+			collecting: "Raccolta file…",
+			addingFile: "Aggiunta file ({0}/{1}): {2}",
+			compressing: "Compressione…",
+			writing: "Scrittura: {0}",
+			writingVolume: "Scrittura volume ({0}/{1}): {2}",
+			done: "Esportazione completata",
+		},
+		success: "Esportato in {0}",
+		successSplit: "Esportato in {0} ({1} volumi)",
+		failed: "Esportazione non riuscita: {0}",
+		emptyFolder: "Questa cartella non contiene file da esportare.",
+		invalidSplitVolume: "Inserisci un numero maggiore o uguale a 0",
+	},
 	exportModal: {
 		title: "Esporta in HTML",
 		exportAsTitle: "Esporta {0} come HTML",

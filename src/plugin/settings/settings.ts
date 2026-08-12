@@ -38,6 +38,18 @@ export class Settings
 	public static deleteOldFiles: boolean = true;
 	public static openAfterExport: boolean = true;
 
+	public static folderZipExport: {
+		compressionLevel: "low" | "medium" | "high";
+		exportPath: string;
+		splitVolumeMB: number;
+		openAfterExport: boolean;
+	} = {
+		compressionLevel: "medium",
+		exportPath: "",
+		splitVolumeMB: 9,
+		openAfterExport: true,
+	};
+
 	// Graph View Settings
 	public static filePickerBlacklist: string[] = ["(^|\\/)node_modules\\/","(^|\\/)dist\\/","(^|\\/)dist-ssr\\/","(^|\\/)\\.vscode\\/"]; // ignore node_modules, dist, and .vscode
 	public static filePickerWhitelist: string[] = ["\\.\\w+$"]; // only include files with extensions

@@ -19,6 +19,42 @@ export const language: i18n =
 	updateAvailable: "Atualização disponível",
 	exportAsHTML: "Exportar como HTML",
 	exportFileWithLinkedAsHTML: "Exportar arquivo e arquivos vinculados como HTML",
+	compressFolderAndExport: "Compactar e exportar pasta",
+	folderZipExportModal:
+	{
+		title: "Compactar e exportar pasta",
+		exportAsTitle: "Compactar e exportar {0}",
+		compression: {
+			title: "Nível de compressão",
+			description: "Intensidade da compressão ZIP. Maior = menor tamanho, mas pode demorar mais.",
+			low: "Baixo",
+			medium: "Médio",
+			high: "Alto",
+		},
+		splitVolume: {
+			title: "Dividir volume (MB)",
+			description: "Divida o arquivo automaticamente se exceder este tamanho. Use 0 para desativar. Padrão 9.",
+		},
+		exportPath: {
+			title: "Caminho de exportação",
+			description: "Escolha a pasta de destino. O arquivo recebe o nome da pasta selecionada.",
+		},
+		exportButton: "Exportar",
+		openAfterExport: "Abrir pasta após exportar",
+		progress: {
+			collecting: "Coletando arquivos…",
+			addingFile: "Adicionando arquivo ({0}/{1}): {2}",
+			compressing: "Compactando…",
+			writing: "Gravando: {0}",
+			writingVolume: "Gravando volume ({0}/{1}): {2}",
+			done: "Exportação concluída",
+		},
+		success: "Exportado para {0}",
+		successSplit: "Exportado para {0} ({1} volumes)",
+		failed: "Falha na exportação: {0}",
+		emptyFolder: "Esta pasta não tem arquivos para exportar.",
+		invalidSplitVolume: "Digite um número maior ou igual a 0",
+	},
 	exportModal: 
 	{
 		title: "Exportar para HTML",

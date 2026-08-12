@@ -19,6 +19,42 @@ export const language: i18n =
 	updateAvailable: "Доступне оновлення",
 	exportAsHTML: "Експортувати як HTML",
 	exportFileWithLinkedAsHTML: "Експортувати файл і пов'язані файли як HTML",
+	compressFolderAndExport: "Стиснути та експортувати папку",
+	folderZipExportModal:
+	{
+		title: "Стиснути та експортувати папку",
+		exportAsTitle: "Стиснути та експортувати {0}",
+		compression: {
+			title: "Рівень стиснення",
+			description: "Інтенсивність ZIP-стиснення. Вищий рівень — менший розмір, але може тривати довше.",
+			low: "Низький",
+			medium: "Середній",
+			high: "Високий",
+		},
+		splitVolume: {
+			title: "Розділення томів (МБ)",
+			description: "Автоматично розділити архів, якщо він перевищує цей розмір. 0 — вимкнути. За замовчуванням 9.",
+		},
+		exportPath: {
+			title: "Шлях експорту",
+			description: "Оберіть каталог призначення. Архів названо за вибраною папкою.",
+		},
+		exportButton: "Експортувати",
+		openAfterExport: "Відкрити папку після експорту",
+		progress: {
+			collecting: "Збір файлів…",
+			addingFile: "Додавання файлу ({0}/{1}): {2}",
+			compressing: "Стиснення…",
+			writing: "Запис: {0}",
+			writingVolume: "Запис тому ({0}/{1}): {2}",
+			done: "Експорт завершено",
+		},
+		success: "Експортовано до {0}",
+		successSplit: "Експортовано до {0} ({1} томів)",
+		failed: "Помилка експорту: {0}",
+		emptyFolder: "У цій папці немає файлів для експорту.",
+		invalidSplitVolume: "Введіть число більше або рівне 0",
+	},
 	exportModal:
 	{
 		title: "Експортувати в HTML",
