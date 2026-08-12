@@ -13,7 +13,7 @@ export const HTML_ATTACHMENT_PLACEHOLDER = "{{html_attachment}}";
 export const HTML_ATTACHMENT_KEYED_PREFIX = "{{html_attachment:";
 
 /** Replaced with the export-time date as `YYYY-mm-dd`. */
-export const CURRENT_DATA_PLACEHOLDER = "{{current_data}}";
+export const CURRENT_DATE_PLACEHOLDER = "{{current_date}}";
 
 export interface HtmlAttachmentSpec
 {
@@ -85,9 +85,9 @@ export async function embedHtmlAttachmentsInDocx(options: EmbedHtmlAttachmentsOp
 	if (!documentXml)
 		throw new DocxEmbedError("Invalid Word template: missing word/document.xml");
 
-	const currentData = formatCurrentData();
-	documentXml = replaceAllPlainTextPlaceholders(documentXml, CURRENT_DATA_PLACEHOLDER, currentData);
-	await replaceCurrentDataInHeadersAndFooters(zip, currentData);
+	const currentDate = formatCurrentDate();
+	documentXml = replaceAllPlainTextPlaceholders(documentXml, CURRENT_DATE_PLACEHOLDER, currentDate);
+	await replaceCurrentDateInHeadersAndFooters(zip, currentDate);
 
 	const usedIds = await collectExistingIds(zip, documentXml);
 	const relsPath = "word/_rels/document.xml.rels";
@@ -190,8 +190,8 @@ export function placeholderForKey(key: string): string
 	return key ? `{{html_attachment:${key}}}` : HTML_ATTACHMENT_PLACEHOLDER;
 }
 
-/** Format a date as `YYYY-mm-dd` for `{{current_data}}`. */
-export function formatCurrentData(date: Date = new Date()): string
+/** Format a date as `YYYY-mm-dd` for `{{current_date}}`. */
+export function formatCurrentDate(date: Date = new Date()): string
 {
 	const year = date.getFullYear();
 	const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -199,7 +199,7 @@ export function formatCurrentData(date: Date = new Date()): string
 	return `${year}-${month}-${day}`;
 }
 
-async function replaceCurrentDataInHeadersAndFooters(zip: JSZip, currentData: string): Promise<void>
+async function replaceCurrentDateInHeadersAndFooters(zip: JSZip, currentDate: string): Promise<void>
 {
 	const paths = Object.keys(zip.files).filter((name) =>
 		/^word\/(header|footer)\d*\.xml$/i.test(name) && !zip.files[name].dir
@@ -209,7 +209,7 @@ async function replaceCurrentDataInHeadersAndFooters(zip: JSZip, currentData: st
 	{
 		const xml = await zip.file(path)?.async("string");
 		if (!xml) continue;
-		zip.file(path, replaceAllPlainTextPlaceholders(xml, CURRENT_DATA_PLACEHOLDER, currentData));
+		zip.file(path, replaceAllPlainTextPlaceholders(xml, CURRENT_DATE_PLACEHOLDER, currentDate));
 	}
 }
 
