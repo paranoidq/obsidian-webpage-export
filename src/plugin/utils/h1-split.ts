@@ -1,14 +1,45 @@
 export interface H1Section
 {
+	/** Display title with `#word-…` tags removed. */
 	title: string;
 	markdown: string;
 	outputFileName: string;
 	/** Index of this H1 among all ATX H1s in the source file (for DOM clipping). */
 	sourceH1Index: number;
+	/**
+	 * Word attachment id from a `#word-<id>` tag on the H1 line.
+	 * Maps to `{{html_attachment:<id>}}` in the Word template.
+	 */
+	wordAttachmentId?: string;
 }
 
 const ATX_H1_LINE = /^#\s+(.+?)\s*$/;
 const ILLEGAL_FILENAME_CHARS = /[\/\\:*?"<>|]/g;
+/** Obsidian tags like `#word-status` used to map H1 sections into Word placeholders. */
+const WORD_ATTACHMENT_TAG = /(?:^|\s)#word-([A-Za-z0-9_-]+)\b/g;
+
+export interface ParsedH1Title
+{
+	displayTitle: string;
+	wordAttachmentId?: string;
+}
+
+/**
+ * Extract `#word-<id>` tags from an H1 title and return a cleaned display title.
+ * When multiple `#word-…` tags exist, the last one wins.
+ */
+export function parseH1TitleForWordAttachment(rawTitle: string): ParsedH1Title
+{
+	let wordAttachmentId: string | undefined;
+	const withoutWordTags = rawTitle.replace(WORD_ATTACHMENT_TAG, (_match, id: string) =>
+	{
+		wordAttachmentId = id;
+		return " ";
+	});
+
+	const displayTitle = withoutWordTags.replace(/\s+/g, " ").trim();
+	return { displayTitle, wordAttachmentId };
+}
 
 /**
  * Split markdown into sections by ATX level-1 headings (`# `).
@@ -16,12 +47,15 @@ const ILLEGAL_FILENAME_CHARS = /[\/\\:*?"<>|]/g;
  * Headings inside fenced code blocks are ignored.
  * Sections whose body is empty/whitespace-only (aside from the H1 line) are skipped.
  * Returns an empty array when there are no exportable H1 sections.
+ *
+ * `#word-<id>` tags on H1 lines are stripped from the exported markdown/title/filename
+ * and exposed as `wordAttachmentId` for Word template embedding.
  */
 export function splitMarkdownByH1(markdown: string): H1Section[]
 {
 	const lines = markdown.replace(/\r\n/g, "\n").split("\n");
-	const sections: { title: string; lines: string[] }[] = [];
-	let current: { title: string; lines: string[] } | undefined;
+	const sections: { rawTitle: string; lines: string[] }[] = [];
+	let current: { rawTitle: string; lines: string[] } | undefined;
 	let inFence = false;
 	let fenceMarker = "";
 
@@ -51,7 +85,7 @@ export function splitMarkdownByH1(markdown: string): H1Section[]
 			const h1Match = line.match(ATX_H1_LINE);
 			if (h1Match)
 			{
-				current = { title: h1Match[1].trim(), lines: [line] };
+				current = { rawTitle: h1Match[1].trim(), lines: [line] };
 				sections.push(current);
 				continue;
 			}
@@ -70,11 +104,17 @@ export function splitMarkdownByH1(markdown: string): H1Section[]
 		const section = sections[sourceH1Index];
 		if (!sectionHasBodyContent(section.lines)) continue;
 
+		const parsed = parseH1TitleForWordAttachment(section.rawTitle);
+		const title = parsed.displayTitle.length > 0 ? parsed.displayTitle : "section";
+		const cleanedLines = [...section.lines];
+		cleanedLines[0] = `# ${title}`;
+
 		result.push({
-			title: section.title,
-			markdown: section.lines.join("\n").replace(/\n+$/, "") + "\n",
-			outputFileName: allocateOutputFileName(section.title, usedNames),
+			title,
+			markdown: cleanedLines.join("\n").replace(/\n+$/, "") + "\n",
+			outputFileName: allocateOutputFileName(title, usedNames),
 			sourceH1Index,
+			wordAttachmentId: parsed.wordAttachmentId,
 		});
 	}
 
@@ -155,6 +195,37 @@ export function clipRenderedContentToH1Section(contentEl: HTMLElement, sectionIn
 		if (!reachedStart)
 			block.remove();
 	}
+
+	// Render uses the vault file; strip #word-… markers from the visible H1.
+	stripWordAttachmentTagsFromHeading(startHeading);
+}
+
+/**
+ * Remove `#word-<id>` tags from a rendered heading (Obsidian tag links and plain text).
+ */
+export function stripWordAttachmentTagsFromHeading(heading: Element): void
+{
+	heading.querySelectorAll("a.tag").forEach((anchor) =>
+	{
+		const text = (anchor.textContent ?? "").trim();
+		if (/^#word-[A-Za-z0-9_-]+$/.test(text))
+			anchor.remove();
+	});
+
+	const walker = document.createTreeWalker(heading, NodeFilter.SHOW_TEXT);
+	const textNodes: Text[] = [];
+	let node: Node | null;
+	while ((node = walker.nextNode()))
+		textNodes.push(node as Text);
+
+	for (const textNode of textNodes)
+	{
+		const next = textNode.nodeValue?.replace(WORD_ATTACHMENT_TAG, " ").replace(/\s+/g, " ");
+		if (next !== undefined && next !== textNode.nodeValue)
+			textNode.nodeValue = next;
+	}
+
+	heading.normalize();
 }
 
 function findTopLevelBlock(sizer: HTMLElement, el: Element): Element | null

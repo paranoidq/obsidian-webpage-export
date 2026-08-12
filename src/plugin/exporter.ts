@@ -8,6 +8,11 @@ import { ExportInfo, ExportModal } from "src/plugin/settings/export-modal";
 import { CascadeExportContext, CascadeExportResolver } from "./cascade-export-resolver";
 import { H1Section, splitMarkdownByH1 } from "./utils/h1-split";
 import { Attachment } from "./utils/downloadable";
+import {
+	exportWordTemplatesAfterHtml,
+	resolveCombinedHtmlPath,
+	WordHtmlAttachmentInput,
+} from "./word-export/word-template-export";
 
 export class HTMLExporter
 {
@@ -47,6 +52,7 @@ export class HTMLExporter
 		const website = await HTMLExporter.exportFiles(files, exportPath, true, Settings.deleteOldFiles);
 
 		if (!website) return;
+		await HTMLExporter.maybeExportWordTemplates(exportPath, website, files);
 		if (Settings.openAfterExport) Utils.openPath(exportPath);
 		new Notice("✅ Finished HTML Export:\n\n" + exportPath, 5000);
 	}
@@ -65,8 +71,15 @@ export class HTMLExporter
 			const sections = splitMarkdownByH1(markdown);
 			if (sections.length > 0)
 			{
-				const ok = await HTMLExporter.exportCascadeH1Sections(entryFile, sections, exportPath, exportRoot);
-				if (!ok) return;
+				const h1Result = await HTMLExporter.exportCascadeH1Sections(entryFile, sections, exportPath, exportRoot);
+				if (!h1Result) return;
+				await HTMLExporter.maybeExportWordTemplates(
+					exportPath,
+					undefined,
+					[entryFile],
+					undefined,
+					h1Result.attachments
+				);
 				if (Settings.openAfterExport) Utils.openPath(exportPath);
 				new Notice("✅ Finished HTML Export:\n\n" + exportPath, 5000);
 				return;
@@ -84,21 +97,27 @@ export class HTMLExporter
 		);
 
 		if (!website) return;
+		await HTMLExporter.maybeExportWordTemplates(exportPath, website, [entryFile]);
 		if (Settings.openAfterExport) Utils.openPath(exportPath);
 		new Notice("✅ Finished HTML Export:\n\n" + exportPath, 5000);
 	}
 
+	/**
+	 * Export each H1 section as its own HTML. Returns Word attachment inputs for
+	 * sections tagged with `#word-<id>` (duplicate ids: last wins + warning).
+	 */
 	private static async exportCascadeH1Sections(
 		entryFile: TFile,
 		sections: H1Section[],
 		destination: Path,
 		exportRoot: string
-	): Promise<boolean>
+	): Promise<{ attachments: WordHtmlAttachmentInput[] } | undefined>
 	{
 		MarkdownRendererAPI.beginBatch();
 		const previousFilesToExport = [...Settings.exportOptions.filesToExport];
 		const resourceByPath = new Map<string, Attachment>();
 		let deleteOld = Settings.deleteOldFiles;
+		const attachmentById = new Map<string, WordHtmlAttachmentInput>();
 
 		try
 		{
@@ -125,7 +144,7 @@ export class HTMLExporter
 				if (!website)
 				{
 					new Notice("❌ Export Cancelled", 5000);
-					return false;
+					return undefined;
 				}
 
 				if (deleteOld)
@@ -149,7 +168,21 @@ export class HTMLExporter
 					deleteOld = false;
 				}
 
-				await website.saveAsCombinedHTML();
+				const htmlPath = await website.saveAsCombinedHTML();
+
+				if (section.wordAttachmentId)
+				{
+					if (attachmentById.has(section.wordAttachmentId))
+					{
+						ExportLog.warning(
+							`Duplicate #word-${section.wordAttachmentId} on H1 "${section.title}"; using the later section`
+						);
+					}
+					attachmentById.set(section.wordAttachmentId, {
+						key: section.wordAttachmentId,
+						htmlPath,
+					});
+				}
 
 				for (const resource of website.getCascadeResourceDownloads())
 					resourceByPath.set(resource.targetPath.path, resource);
@@ -157,13 +190,13 @@ export class HTMLExporter
 
 			const resources = [...resourceByPath.values()];
 			if (resources.length) await Utils.downloadAttachments(resources);
-			return true;
+			return { attachments: [...attachmentById.values()] };
 		}
 		catch (e)
 		{
 			new Notice("❌ Export Failed: " + e, 5000);
 			ExportLog.error(e, "Export Failed", true);
-			return false;
+			return undefined;
 		}
 		finally
 		{
@@ -239,6 +272,46 @@ export class HTMLExporter
 	{
 		const files = app.vault.getFiles();
 		return await this.exportFiles(files, rootExportPath, saveFiles, clearDirectory);
+	}
+
+	private static async maybeExportWordTemplates(
+		destination: Path,
+		website: Website | undefined,
+		entryFiles: TFile[],
+		htmlPathOverride?: Path,
+		attachmentsOverride?: WordHtmlAttachmentInput[]
+	): Promise<void>
+	{
+		try
+		{
+			let attachments = attachmentsOverride;
+			if (!attachments)
+			{
+				const htmlPath = htmlPathOverride
+					?? (website ? resolveCombinedHtmlPath(website, destination) : undefined);
+				if (!htmlPath) return;
+				attachments = [{ key: "", htmlPath }];
+			}
+
+			if (attachments.length === 0)
+			{
+				ExportLog.warning(
+					"Word export skipped: H1 sections exported but none were tagged with #word-<id>"
+				);
+				return;
+			}
+
+			await exportWordTemplatesAfterHtml({
+				destination,
+				attachments,
+				entryFiles,
+			});
+		}
+		catch (e)
+		{
+			ExportLog.error(e, "Word template export failed");
+			new Notice("Word export failed: " + (e instanceof Error ? e.message : String(e)), 7000);
+		}
 	}
 
 }

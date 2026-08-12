@@ -786,7 +786,7 @@ window.__MEDIA_HYDRATE_PROMISE=window.__hydrateInlineMedia(document);
 		);
 	}
 
-	public async saveAsCombinedHTML(): Promise<void>
+	public async saveAsCombinedHTML(): Promise<Path>
 	{
 		const html = await this.getCombinedHTML();
 		const maxBytes = this.exportOptions.maxCombinedHtmlBytes ?? DEFAULT_MAX_COMBINED_HTML_BYTES;
@@ -805,5 +805,6 @@ window.__MEDIA_HYDRATE_PROMISE=window.__hydrateInlineMedia(document);
 		}
 		const path = this.destination.joinString(outputName);
 		await path.write(budgeted.html);
+		return path;
 	}
 }

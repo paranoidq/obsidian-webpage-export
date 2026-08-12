@@ -13,6 +13,7 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@eslint/js": "^9.1.1",
+		"@types/jszip": "^3.4.0",
 		"@types/mime": "^3.0.4",
 		"@types/node": "^16.11.6",
 		"@types/postcss-safe-parser": "^5.0.4",
@@ -31,8 +32,10 @@
 		"typescript-eslint": "^7.7.0"
 	},
 	"dependencies": {
+		"cfb": "^1.2.2",
 		"file-type": "^19.0.0",
 		"html-minifier-terser": "^7.2.0",
+		"jszip": "^3.10.1",
 		"mime": "^3.0.0",
 		"minisearch": "^7.1.0",
 		"postcss": "^8.4.47",
