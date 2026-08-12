@@ -197,7 +197,7 @@ async function exportOneWordTemplate(options: {
 		throw new Error(e instanceof Error ? e.message : String(e));
 	}
 
-	const outName = options.entryFile.basename + ".docx";
+	const outName = templatePath.fullName;
 	const outPath = options.destination.joinString(outName).absoluted();
 
 	if (outPath.pathname === templateAbsolute)
