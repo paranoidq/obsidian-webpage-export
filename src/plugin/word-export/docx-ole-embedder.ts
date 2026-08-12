@@ -12,6 +12,9 @@ export const HTML_ATTACHMENT_PLACEHOLDER = "{{html_attachment}}";
 /** Keyed placeholder prefix: `{{html_attachment:<id>}}`. */
 export const HTML_ATTACHMENT_KEYED_PREFIX = "{{html_attachment:";
 
+/** Replaced with the export-time date as `YYYY-mm-dd`. */
+export const CURRENT_DATA_PLACEHOLDER = "{{current_data}}";
+
 export interface HtmlAttachmentSpec
 {
 	/** Placeholder key; empty string means bare `{{html_attachment}}`. */
@@ -81,6 +84,10 @@ export async function embedHtmlAttachmentsInDocx(options: EmbedHtmlAttachmentsOp
 	let documentXml = await zip.file(documentPath)?.async("string");
 	if (!documentXml)
 		throw new DocxEmbedError("Invalid Word template: missing word/document.xml");
+
+	const currentData = formatCurrentData();
+	documentXml = replaceAllPlainTextPlaceholders(documentXml, CURRENT_DATA_PLACEHOLDER, currentData);
+	await replaceCurrentDataInHeadersAndFooters(zip, currentData);
 
 	const usedIds = await collectExistingIds(zip, documentXml);
 	const relsPath = "word/_rels/document.xml.rels";
@@ -181,6 +188,112 @@ export async function embedHtmlAttachmentInDocx(options: EmbedHtmlAttachmentOpti
 export function placeholderForKey(key: string): string
 {
 	return key ? `{{html_attachment:${key}}}` : HTML_ATTACHMENT_PLACEHOLDER;
+}
+
+/** Format a date as `YYYY-mm-dd` for `{{current_data}}`. */
+export function formatCurrentData(date: Date = new Date()): string
+{
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
+}
+
+async function replaceCurrentDataInHeadersAndFooters(zip: JSZip, currentData: string): Promise<void>
+{
+	const paths = Object.keys(zip.files).filter((name) =>
+		/^word\/(header|footer)\d*\.xml$/i.test(name) && !zip.files[name].dir
+	);
+
+	for (const path of paths)
+	{
+		const xml = await zip.file(path)?.async("string");
+		if (!xml) continue;
+		zip.file(path, replaceAllPlainTextPlaceholders(xml, CURRENT_DATA_PLACEHOLDER, currentData));
+	}
+}
+
+/**
+ * Replace every occurrence of a plain-text placeholder in Word XML,
+ * including when Word splits the placeholder across multiple `w:t` runs.
+ */
+export function replaceAllPlainTextPlaceholders(
+	documentXml: string,
+	placeholder: string,
+	replacement: string
+): string
+{
+	let xml = documentXml;
+	while (true)
+	{
+		const runs = collectTextRuns(xml);
+		if (runs.length === 0) break;
+
+		const joined = runs.map((r) => r.text).join("");
+		const start = joined.indexOf(placeholder);
+		if (start < 0) break;
+
+		const next = replacePlainTextPlaceholderAt(xml, runs, start, start + placeholder.length, replacement);
+		if (!next || next === xml) break;
+		xml = next;
+	}
+	return xml;
+}
+
+function replacePlainTextPlaceholderAt(
+	documentXml: string,
+	runs: TextRun[],
+	start: number,
+	end: number,
+	replacement: string
+): string | undefined
+{
+	let cursor = 0;
+	let startRun = -1;
+	let endRun = -1;
+	let startOffsetInRun = 0;
+	let endOffsetInRun = 0;
+
+	for (let i = 0; i < runs.length; i++)
+	{
+		const run = runs[i];
+		const next = cursor + run.text.length;
+		if (startRun < 0 && start < next)
+		{
+			startRun = i;
+			startOffsetInRun = start - cursor;
+		}
+		if (end <= next)
+		{
+			endRun = i;
+			endOffsetInRun = end - cursor;
+			break;
+		}
+		cursor = next;
+	}
+
+	if (startRun < 0 || endRun < 0) return undefined;
+
+	let middle = "";
+	if (startRun === endRun)
+	{
+		const prefix = runs[startRun].text.slice(0, startOffsetInRun);
+		const suffix = runs[startRun].text.slice(endOffsetInRun);
+		middle = writeRun(runs[startRun], prefix + replacement + suffix);
+	}
+	else
+	{
+		const prefix = runs[startRun].text.slice(0, startOffsetInRun);
+		const suffix = runs[endRun].text.slice(endOffsetInRun);
+		middle = writeRun(runs[startRun], prefix + replacement);
+		for (let i = startRun + 1; i < endRun; i++)
+			middle += writeRun(runs[i], "");
+		middle += writeRun(runs[endRun], suffix);
+	}
+
+	const before = documentXml.slice(0, runs[startRun].index);
+	const after = documentXml.slice(runs[endRun].index + runs[endRun].fullMatch.length);
+	return before + middle + after;
 }
 
 function findPlaceholders(documentXml: string): PlaceholderHit[]
