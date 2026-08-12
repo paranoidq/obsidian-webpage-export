@@ -16,6 +16,29 @@ import { RssOptions } from "src/shared/features/rss";
 import { LinkPreviewOptions } from "src/shared/features/link-preview";
 import { ImageCompressionLevel } from "src/plugin/utils/image-compressor";
 
+export enum DocumentFontSize
+{
+	Small = "small",
+	Medium = "medium",
+	Large = "large",
+}
+
+/**
+ * The theme still decides the base text size; these only scale it, so medium
+ * exports exactly what the theme would have produced on its own.
+ */
+const DOCUMENT_FONT_SIZE_SCALES: Record<DocumentFontSize, number> =
+{
+	[DocumentFontSize.Small]: 0.85,
+	[DocumentFontSize.Medium]: 1,
+	[DocumentFontSize.Large]: 1.2,
+};
+
+export function getDocumentFontScale(size: DocumentFontSize | string | undefined): number
+{
+	return DOCUMENT_FONT_SIZE_SCALES[size as DocumentFontSize] ?? 1;
+}
+
 export class ExportPipelineOptions extends MarkdownRendererOptions
 {
 	// Features that can be toggled on or off
@@ -166,6 +189,21 @@ export class ExportPipelineOptions extends MarkdownRendererOptions
 	 * Medium and below should remain visually sharp; High may introduce artifacts.
 	 */
 	imageCompressionLevel: ImageCompressionLevel = ImageCompressionLevel.Medium;
+
+	/**
+	 * Text size of the exported document, both on screen and when printed,
+	 * relative to the size the theme uses.
+	 */
+	documentFontSize: DocumentFontSize = DocumentFontSize.Medium;
+
+	/**
+	 * Print with fonts the browser is allowed to embed into a PDF.
+	 * Variable fonts (Inter and most modern theme fonts) and a few system fonts
+	 * such as PingFang cannot be embedded, so the browser draws every glyph as a
+	 * picture and the resulting PDF has no text to select, copy or search.
+	 * The printed page then uses a different typeface than the web page.
+	 */
+	printSelectableText: boolean = true;
 
 	/**
 	 * Do not leave any online urls, download them and embed them into the HTML.

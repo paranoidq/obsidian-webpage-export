@@ -231,6 +231,10 @@ html>body>#main-horizontal>#center-content>.obsidian-document>.markdown-preview-
 	transform: rotate(-90deg);
 }
 
+/* Collapse indicators are invisible until their heading or list item is hovered,
+   but they still take the mouse, so their boxes have to end where the text
+   begins. Padding reaching past the arrow swallows presses on the first words and
+   drops the start of a text selection somewhere else. */
 .heading .heading-collapse-indicator {
 	opacity: 0;
 	transition: opacity 0.15s ease-in-out;
@@ -238,8 +242,11 @@ html>body>#main-horizontal>#center-content>.obsidian-document>.markdown-preview-
 	z-index: 1;
 	padding: 0 !important;
 	padding-left: 2em !important;
-	padding-right: 1em !important;
 	left: -2em !important;
+}
+
+.obsidian-document .list-collapse-indicator {
+	padding-inline-end: 0 !important;
 }
 
 .heading:hover>.heading-collapse-indicator{
@@ -744,6 +751,18 @@ body.is-phone {
 		display: none !important;
 	}
 
+	/* Obsidian hides the native list marker and paints the bullet as a background
+	   colour on .list-bullet::after, so it vanishes together with every other
+	   background when "background graphics" is off, which is the print default.
+	   A border of half the bullet width fills the same circle with ink that is
+	   always printed. */
+	.obsidian-document .list-bullet::after {
+		box-sizing: border-box !important;
+		background-color: transparent !important;
+		color: var(--list-marker-color, var(--text-faint, #777777)) !important;
+		border: calc(var(--list-bullet-size, 0.3em) / 2) solid currentColor !important;
+	}
+
 	/* long code blocks are folded automatically on screen, print their contents */
 	.code-block-wrapper.is-collapsed>pre {
 		display: block !important;
@@ -754,7 +773,7 @@ body.is-phone {
 	/*--- Typography: paper-sized type so a page holds a useful amount of text ---*/
 
 	html body {
-		--font-text-size: 10.5pt !important;
+		--font-text-size: calc(10.5pt * var(--export-font-scale, 1)) !important;
 		--font-ui-small: 9pt !important;
 		--code-size: 0.85em !important;
 		--line-height-normal: 1.45 !important;

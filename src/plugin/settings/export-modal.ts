@@ -10,6 +10,7 @@ import { Website } from 'src/plugin/website/website';
 import { Index } from 'src/plugin/website';
 import { i18n } from '../translations/language';
 import { ImageCompressionLevel } from 'src/plugin/utils/image-compressor';
+import { DocumentFontSize } from 'src/plugin/website/pipeline-options';
 
 export interface ExportInfo
 {
@@ -197,6 +198,28 @@ export class ExportModal extends Modal
 				[compressionLabels.high]: ImageCompressionLevel.High,
 			},
 			compressionLabels.description,
+		);
+
+		const fontSizeLabels = lang.documentFontSize;
+		createDropdown(
+			contentEl,
+			fontSizeLabels.title,
+			() => Settings.exportOptions.documentFontSize,
+			(value) => Settings.exportOptions.documentFontSize = value as DocumentFontSize,
+			{
+				[fontSizeLabels.small]: DocumentFontSize.Small,
+				[fontSizeLabels.medium]: DocumentFontSize.Medium,
+				[fontSizeLabels.large]: DocumentFontSize.Large,
+			},
+			fontSizeLabels.description,
+		);
+
+		createToggle(
+			contentEl,
+			lang.printSelectableText.title,
+			() => Settings.exportOptions.printSelectableText,
+			(value) => Settings.exportOptions.printSelectableText = value,
+			lang.printSelectableText.description,
 		);
 
 		let exportButton : ButtonComponent | undefined = undefined;

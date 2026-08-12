@@ -38,6 +38,17 @@ export interface i18n
 			medium: string;
 			high: string;
 		};
+		documentFontSize: {
+			title: string;
+			description: string;
+			small: string;
+			medium: string;
+			large: string;
+		};
+		printSelectableText: {
+			title: string;
+			description: string;
+		};
 		exportButton: string;
 		filePicker: 
 		{
@@ -225,6 +236,17 @@ export interface i18n
 			low: string;
 			medium: string;
 			high: string;
+		},
+		documentFontSize: {
+			title: string;
+			description: string;
+			small: string;
+			medium: string;
+			large: string;
+		},
+		printSelectableText: {
+			title: string;
+			description: string;
 		},
 		addPageIcon: {
 			title: string;

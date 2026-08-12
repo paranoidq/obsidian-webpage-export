@@ -4,7 +4,7 @@ import pluginStylesBlacklist from 'src/assets/third-party-styles-blacklist.txt';
 import { ExportLog } from 'src/plugin/render-api/render-api';
 import { createDivider, createDropdown, createFeatureSetting, createFileInput, createSection, createText, createToggle, generateSettingsFromObject }  from './settings-components';
 import { ImageCompressionLevel } from "src/plugin/utils/image-compressor";
-import { ExportPipelineOptions } from "src/plugin/website/pipeline-options.js";
+import { DocumentFontSize, ExportPipelineOptions } from "src/plugin/website/pipeline-options.js";
 import { FlowList } from 'src/plugin/features/flow-list';
 import { i18n } from '../translations/language';
 import { error } from 'console';
@@ -320,6 +320,24 @@ export class SettingsPage extends PluginSettingTab
 			},
 			lang.imageCompression.description,
 		);
+
+		createDropdown(
+			section,
+			lang.documentFontSize.title,
+			() => Settings.exportOptions.documentFontSize,
+			(value) => Settings.exportOptions.documentFontSize = value as DocumentFontSize,
+			{
+				[lang.documentFontSize.small]: DocumentFontSize.Small,
+				[lang.documentFontSize.medium]: DocumentFontSize.Medium,
+				[lang.documentFontSize.large]: DocumentFontSize.Large,
+			},
+			lang.documentFontSize.description,
+		);
+
+		createToggle(section, lang.printSelectableText.title,
+			() => Settings.exportOptions.printSelectableText,
+			(value) => Settings.exportOptions.printSelectableText = value,
+			lang.printSelectableText.description);
 
 		createToggle(section, lang.makeOfflineCompatible.title,
 			() => Settings.exportOptions.offlineResources,

@@ -33,6 +33,17 @@ export const language: i18n =
 			medium: "中",
 			high: "高（图片可能会失真）",
 		},
+		documentFontSize: {
+			title: "文档字体大小",
+			description: "导出页面的正文字号，屏幕阅读和打印都会跟随此设置。",
+			small: "小",
+			medium: "中",
+			large: "大",
+		},
+		printSelectableText: {
+			title: "PDF 文本可选中",
+			description: "打印时改用浏览器能够嵌入的字体，PDF 里的文字才能正常选中、复制和搜索。打印出的字体会与网页略有不同。",
+		},
 		exportButton: "导出",
 		filePicker:
 		{
@@ -220,6 +231,17 @@ export const language: i18n =
 			low: "低",
 			medium: "中",
 			high: "高（图片可能会失真）",
+		},
+		documentFontSize: {
+			title: "文档字体大小",
+			description: "导出页面的正文字号，屏幕阅读和打印都会跟随此设置。",
+			small: "小",
+			medium: "中",
+			large: "大",
+		},
+		printSelectableText: {
+			title: "PDF 文本可选中",
+			description: "打印时改用浏览器能够嵌入的字体，PDF 里的文字才能正常选中、复制和搜索。打印出的字体会与网页略有不同。",
 		},
 		addPageIcon: {
 			title: "添加页面图标",

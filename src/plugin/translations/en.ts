@@ -33,6 +33,17 @@ export const language: i18n =
 			medium: "Medium",
 			high: "High (images may look distorted)",
 		},
+		documentFontSize: {
+			title: "Document font size",
+			description: "Text size of the exported pages, on screen and when printed.",
+			small: "Small",
+			medium: "Medium",
+			large: "Large",
+		},
+		printSelectableText: {
+			title: "Selectable text in PDF",
+			description: "Print with fonts the browser can embed, so text in the PDF stays selectable, copyable and searchable. Printed pages use a slightly different typeface than the web page.",
+		},
 		exportButton: "Export",
 		filePicker: 
 		{
@@ -221,6 +232,17 @@ export const language: i18n =
 			low: "Low",
 			medium: "Medium",
 			high: "High (images may look distorted)",
+		},
+		documentFontSize: {
+			title: "Document font size",
+			description: "Text size of the exported pages, on screen and when printed.",
+			small: "Small",
+			medium: "Medium",
+			large: "Large",
+		},
+		printSelectableText: {
+			title: "Selectable text in PDF",
+			description: "Print with fonts the browser can embed, so text in the PDF stays selectable, copyable and searchable. Printed pages use a slightly different typeface than the web page.",
 		},
 		addPageIcon: {
 			title: "Add Page Icon",
