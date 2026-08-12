@@ -1,6 +1,10 @@
 import JSZip from "jszip";
-import htmlAttachmentIcon from "src/assets/html-attachment-icon.png";
 import { createOlePackageBin } from "./ole-package";
+import {
+	OLE_ICON_DISPLAY_HEIGHT_PT,
+	OLE_ICON_DISPLAY_WIDTH_PT,
+	renderOleIconWithLabel,
+} from "./ole-icon-renderer";
 
 /** Bare placeholder for a single HTML export (non-H1-split). */
 export const HTML_ATTACHMENT_PLACEHOLDER = "{{html_attachment}}";
@@ -120,8 +124,9 @@ export async function embedHtmlAttachmentsInDocx(options: EmbedHtmlAttachmentsOp
 		const embeddingName = pickUnusedName(zip, "word/embeddings/oleObject", ".bin");
 		zip.file(`word/embeddings/${embeddingName}`, oleBin);
 
+		const iconPng = await renderOleIconWithLabel(attachment.attachmentFileName);
 		const iconName = pickUnusedName(zip, "word/media/oleHtmlIcon", ".png");
-		zip.file(`word/media/${iconName}`, Buffer.from(htmlAttachmentIcon));
+		zip.file(`word/media/${iconName}`, iconPng);
 
 		newRels.push(
 			{
@@ -393,26 +398,19 @@ function buildOleObjectXml(oleRelId: string, iconRelId: string, attachmentFileNa
 	const shapeId = `_x0000_i${Math.floor(Math.random() * 9000) + 1000}`;
 	const objectId = `_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
 	const title = escapeXml(attachmentFileName);
-	const iconStyle = "width:40pt;height:40pt";
-	const label = escapeXml(attachmentFileName);
+	// Single OLE presentation: globe + filename baked into imagedata (fully clickable).
+	const iconStyle = `width:${OLE_ICON_DISPLAY_WIDTH_PT}pt;height:${OLE_ICON_DISPLAY_HEIGHT_PT}pt`;
+	const dxa = Math.round(OLE_ICON_DISPLAY_WIDTH_PT * 20);
+	const dya = Math.round(OLE_ICON_DISPLAY_HEIGHT_PT * 20);
 
 	return (
 		`<w:r>` +
-		`<w:object w:dxaOrig="2880" w:dyaOrig="2880">` +
+		`<w:object w:dxaOrig="${dxa}" w:dyaOrig="${dya}">` +
 		`<v:shape id="${shapeId}" type="#_x0000_t75" style="${iconStyle}" o:ole="" o:title="${title}">` +
 		`<v:imagedata r:id="${iconRelId}" o:title="${title}"/>` +
 		`</v:shape>` +
 		`<o:OLEObject Type="Embed" ProgID="Package" ShapeID="${shapeId}" DrawAspect="Icon" ObjectID="${objectId}" r:id="${oleRelId}"/>` +
 		`</w:object>` +
-		`</w:r>` +
-		`<w:r>` +
-		`<w:rPr>` +
-		`<w:color w:val="0563C1"/>` +
-		`<w:u w:val="single"/>` +
-		`<w:sz w:val="20"/>` +
-		`<w:szCs w:val="20"/>` +
-		`</w:rPr>` +
-		`<w:t xml:space="preserve"> ${label}</w:t>` +
 		`</w:r>`
 	);
 }
