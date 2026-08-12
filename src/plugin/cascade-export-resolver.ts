@@ -162,6 +162,9 @@ export class CascadeExportResolver
 	private static isCascadePageFile(file: TFile): boolean
 	{
 		if (!MarkdownRendererAPI.isConvertable(file.extension)) return false;
+		// Excalidraw drawings are inlined as SVG in the parent page; opening them as
+		// separate cascade pages forces a full Excalidraw editor load and is very slow.
+		if (MarkdownRendererAPI.isExcalidrawFile(file)) return false;
 		return !MarkdownRendererAPI.viewableMediaExtensions.contains(file.extension);
 	}
 

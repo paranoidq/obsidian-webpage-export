@@ -90,10 +90,19 @@ export class Webpage extends Attachment
 	public async generateOutput()
 	{
 		const output = new WebpageOutputData();
+		let stepStartedAt = Date.now();
+		ExportLog.log("Output: serializing HTML...");
 		output.html = this.html;
+		ExportLog.log(`Output: HTML serialized in ${Date.now() - stepStartedAt}ms (${output.html.length} chars)`);
+
 		output.title = this.title;
 		output.icon = this.icon;
+
+		stepStartedAt = Date.now();
+		ExportLog.log("Output: building description...");
 		output.description = this.descriptionOrShortenedContent;
+		ExportLog.log(`Output: description finished in ${Date.now() - stepStartedAt}ms`);
+
 		output.author = this.author;
 		output.fullURL = this.fullURL;
 		output.rssDate = this.rssDate;
@@ -104,9 +113,19 @@ export class Webpage extends Attachment
 		output.aliases = this.aliases;
 		output.backlinks = this.backlinks;
 		output.headings = this.headings;
+
+		stepStartedAt = Date.now();
+		ExportLog.log("Output: rendering headings...");
 		output.renderedHeadings = await this.getRenderedHeadings();
-		output.descriptionOrShortenedContent = this.descriptionOrShortenedContent;
+		ExportLog.log(`Output: headings finished in ${Date.now() - stepStartedAt}ms`);
+
+		output.descriptionOrShortenedContent = output.description;
+
+		stepStartedAt = Date.now();
+		ExportLog.log("Output: building search content...");
 		output.searchContent = this.searchContent;
+		ExportLog.log(`Output: search content finished in ${Date.now() - stepStartedAt}ms`);
+
 		output.srcLinks = this.srcLinks;
 		output.hrefLinks = this.hrefLinks;
 		output.linksToOtherFiles = this.linksToOtherFiles;
@@ -152,7 +171,7 @@ export class Webpage extends Attachment
 			return "";
 		}
 
-		const skipSelector = ".math, svg, img, .frontmatter, .metadata-container, .heading-after, style, script";
+		const skipSelector = ".math, svg, img, .frontmatter, .metadata-container, .heading-after, style, script, .excalidraw-svg, .excalidraw-plugin, img.excalidraw-export-img";
 		function getTextNodes(element: HTMLElement): Node[]
 		{
 			const textNodes = [];
@@ -338,8 +357,10 @@ export class Webpage extends Attachment
 		{
 			if(!this.viewElement) return "";
 			const content = this.viewElement.cloneNode(true) as HTMLElement;
-			content.querySelectorAll(`h1, h2, h3, h4, h5, h6, .mermaid, table, mjx-container, style, script, 
-.mod-header, .mod-footer, .metadata-container, .frontmatter, img[src^="data:"]`).forEach((heading) => heading.remove());
+			// Heavy media/svg copies dominate export time and are useless for descriptions.
+			content.querySelectorAll(`h1, h2, h3, h4, h5, h6, .mermaid, table, mjx-container, style, script, svg,
+.excalidraw-svg, .excalidraw-plugin, .mod-header, .mod-footer, .metadata-container, .frontmatter,
+img, video, audio, canvas`).forEach((heading) => heading.remove());
 
 			// update image links
 			content.querySelectorAll("[src]").forEach((el: HTMLImageElement) => 
@@ -427,6 +448,8 @@ export class Webpage extends Attachment
 			if (last?.tagName == "BR") last.remove();
 
 			description = content.innerHTML;
+			// Keep descriptions short — full HTML here previously ballooned with media.
+			if (description.length > 2000) description = description.slice(0, 2000);
 			content.remove();
 		}
 
@@ -522,13 +545,52 @@ export class Webpage extends Attachment
 	}
 	private get srcLinkElements(): HTMLImageElement[]
 	{
-		const srcEls = (Array.from(this.pageDocument.querySelectorAll(".obsidian-document [src]:not(head *)")) as HTMLImageElement[]);
-		return srcEls;
+		// Only real media hosts — never SVG <image>/Excalidraw internals.
+		// Skip already-inlined data URIs (getAttribute copies megabytes of base64).
+		const srcEls = Array.from(this.pageDocument.querySelectorAll(
+			".obsidian-document img[src], .obsidian-document video[src], .obsidian-document audio[src], .obsidian-document source[src], .obsidian-document embed[src]"
+		)) as HTMLImageElement[];
+		return srcEls.filter((el) => {
+			if (el.closest("head, .excalidraw-svg, .excalidraw-plugin")) return false;
+			if (el.hasAttribute("data-media-id") || el.hasAttribute("data-media-pending-strip")) return false;
+			const src = el.getAttribute("src") ?? "";
+			return !src.startsWith("data:") && !src.startsWith("blob:");
+		});
 	}
 	private get hrefLinkElements(): HTMLAnchorElement[]
 	{
-		const hrefEls = (Array.from(this.pageDocument.querySelectorAll(".obsidian-document [href]:not(head *)")) as HTMLAnchorElement[]);
-		return hrefEls;
+		// Only anchors. Generic [href] also matches SVG <image href>/<use href> inside
+		// Excalidraw and stalls when those attributes hold large data URIs.
+		return Array.from(this.pageDocument.querySelectorAll(
+			".obsidian-document a[href], .obsidian-document area[href]"
+		)).filter((el) => !el.closest("head, .excalidraw-svg, .excalidraw-plugin")) as HTMLAnchorElement[];
+	}
+
+	/**
+	 * Temporarily detach Excalidraw SVG subtrees so querySelectorAll/remap don't walk
+	 * thousands of vector nodes and huge data-URI attributes.
+	 */
+	private withExcalidrawDetached<T>(fn: () => T): T
+	{
+		const stubs: { host: Element; parent: Node; next: ChildNode | null }[] = [];
+		const hosts = Array.from(this.pageDocument.querySelectorAll(".excalidraw-svg, .excalidraw-plugin, img.excalidraw-export-img"));
+		for (const host of hosts)
+		{
+			if (!host.parentNode) continue;
+			stubs.push({ host, parent: host.parentNode, next: host.nextSibling });
+			host.remove();
+		}
+		try
+		{
+			return fn();
+		}
+		finally
+		{
+			for (const { host, parent, next } of stubs)
+			{
+				parent.insertBefore(host, next);
+			}
+		}
 	}
 	private get linksToOtherFiles(): string[]
 	{
@@ -559,7 +621,10 @@ export class Webpage extends Attachment
 		{
 			try
 			{
+				ExportLog.log(`Inlining media for ${this.source.path}...`);
+				const startedAt = Date.now();
 				await this.inlineMedia();
+				ExportLog.log(`Inline media finished in ${Date.now() - startedAt}ms`);
 			}
 			catch (error)
 			{
@@ -567,18 +632,29 @@ export class Webpage extends Attachment
 			}
 		}
 
-		if (this.exportOptions.addHeadTag) 
+		if (this.exportOptions.addHeadTag)
+		{
+			ExportLog.log("Adding document head...");
+			const startedAt = Date.now();
 			await this.addHead();
+			ExportLog.log(`Add head finished in ${Date.now() - startedAt}ms`);
+		}
 
 		if (this.exportOptions.fixLinks)
 		{
+			ExportLog.log("Remapping links...");
+			let startedAt = Date.now();
 			this.remapLinks();
+			ExportLog.log(`remapLinks finished in ${Date.now() - startedAt}ms`);
+			startedAt = Date.now();
 			this.remapEmbedLinks();
+			ExportLog.log(`remapEmbedLinks finished in ${Date.now() - startedAt}ms`);
 		}
 
 		// add math styles to the document. They are here and not in <head> because they are unique to each document
 		if (this.exportOptions.addMathjaxStyles && this.type != DocumentType.Attachment)
 		{
+			ExportLog.log("Adding mathjax styles...");
 			const mathStyleEl = document.createElement("style");
 			mathStyleEl.id = "MJX-CHTML-styles";
 			await AssetHandler.mathjaxStyles.load();
@@ -589,6 +665,8 @@ export class Webpage extends Attachment
 		// inject outline
 		if (this.exportOptions.outlineOptions.enabled)
 		{
+			ExportLog.log("Generating outline...");
+			const startedAt = Date.now();
 			const headerTree = new OutlineTree(this, 1);
 			headerTree.id = "outline";
 			headerTree.title = "Table Of Contents";
@@ -596,6 +674,7 @@ export class Webpage extends Attachment
 			headerTree.generateWithItemsClosed = this.exportOptions.outlineOptions.startCollapsed === true;
 			headerTree.minCollapsableDepth = this.exportOptions.outlineOptions.minCollapseDepth ?? 2;
 			this.exportOptions.outlineOptions.insertFeature(this.pageDocument.documentElement, await headerTree.generate());
+			ExportLog.log(`Outline finished in ${Date.now() - startedAt}ms`);
 		}
 
 		// if html will be inlined, un-collapse the tree containing this file
@@ -616,6 +695,7 @@ export class Webpage extends Attachment
 
 		if (this.exportOptions.includeJS)
 		{
+			ExportLog.log("Injecting body JS...");
 			const bodyScript = this.pageDocument.createElement("script");
 			bodyScript.setAttribute("defer", "");
 			// textContent (not innerText) — innerText can surface script source in print.
@@ -625,7 +705,10 @@ export class Webpage extends Attachment
 
 		this.pageDocument.documentElement.lang = moment.locale();
 
+		ExportLog.log("Generating webpage output data...");
+		const outputStartedAt = Date.now();
 		await this.generateOutput();
+		ExportLog.log(`Generate output finished in ${Date.now() - outputStartedAt}ms`);
 
 		return this;
 	}
@@ -767,47 +850,54 @@ export class Webpage extends Attachment
 	readonly headerMap = new Map();
 	private remapLinks()
 	{
-		// convert the data-heading to the id
-		this.pageDocument
-			.querySelectorAll("h1, h2, h3, h4, h5, h6")
-			.forEach((headerEl) => {
-				let headerText = (headerEl.getAttribute("data-heading") ?? headerEl.textContent ?? "").replaceAll(" ", "_").replaceAll(":", "").replaceAll("__", "_");
-				let headerId = this.headerMap.get(headerText);
-				if (headerId) {
-					headerId = `${+headerId + 1}`;
-				} else {
-					headerId = "0";
-				}
+		this.withExcalidrawDetached(() => {
+			ExportLog.log("remapLinks: indexing headers...");
+			// convert the data-heading to the id
+			this.pageDocument
+				.querySelectorAll(".obsidian-document h1, .obsidian-document h2, .obsidian-document h3, .obsidian-document h4, .obsidian-document h5, .obsidian-document h6")
+				.forEach((headerEl) => {
+					let headerText = (headerEl.getAttribute("data-heading") ?? headerEl.textContent ?? "").replaceAll(" ", "_").replaceAll(":", "").replaceAll("__", "_");
+					let headerId = this.headerMap.get(headerText);
+					if (headerId) {
+						headerId = `${+headerId + 1}`;
+					} else {
+						headerId = "0";
+					}
 
-				this.headerMap.set(headerText, headerId);
+					this.headerMap.set(headerText, headerId);
 
-				headerEl.setAttribute(
-					"id",
-					`${headerText}_${headerId}`
-				);
-			});
+					headerEl.setAttribute(
+						"id",
+						`${headerText}_${headerId}`
+					);
+				});
 
-		const links = this.hrefLinkElements;
-		for (const link of links) {
-			const href = link.getAttribute("href");
-			const newHref = this.resolveLink(href, link);
-			link.setAttribute("href", newHref ?? href ?? "");
-			link.setAttribute("target", "_self");
-			link.classList.toggle("is-unresolved", !newHref);
-		}
+			const links = this.hrefLinkElements;
+			ExportLog.log(`Remapping ${links.length} anchor href(s)...`);
+			for (const link of links) {
+				const href = link.getAttribute("href");
+				const newHref = this.resolveLink(href, link);
+				link.setAttribute("href", newHref ?? href ?? "");
+				link.setAttribute("target", "_self");
+				link.classList.toggle("is-unresolved", !newHref);
+			}
+		});
 	}
 
 	private remapEmbedLinks()
 	{
-		const links = this.srcLinkElements;
-		for (const link of links)
-		{
-			const src = link.getAttribute("src");
-			const newSrc = this.resolveLink(src, link, true);
-			link.setAttribute("src", newSrc ?? src ?? "");
-			link.setAttribute("target", "_self");
-			link.classList.toggle("is-unresolved", !newSrc);
-		}
+		this.withExcalidrawDetached(() => {
+			const links = this.srcLinkElements;
+			ExportLog.log(`Remapping ${links.length} media src(s)...`);
+			for (const link of links)
+			{
+				const src = link.getAttribute("src");
+				const newSrc = this.resolveLink(src, link, true);
+				link.setAttribute("src", newSrc ?? src ?? "");
+				link.setAttribute("target", "_self");
+				link.classList.toggle("is-unresolved", !newSrc);
+			}
+		});
 	}
 
 	private async addHead()
@@ -861,7 +951,10 @@ export class Webpage extends Attachment
 
 	private async inlineMedia()
 	{
-		const elements = Array.from(this.pageDocument.querySelectorAll("[src]:not(head [src])"))
+		// Avoid walking Excalidraw SVG internals (image href/data URIs).
+		const elements = Array.from(this.pageDocument.querySelectorAll(
+			".obsidian-document img[src], .obsidian-document video[src], .obsidian-document audio[src], .obsidian-document source[src], .obsidian-document embed[src]"
+		)).filter((el) => !el.closest("head, .excalidraw-svg, .excalidraw-plugin"));
 		for (const mediaEl of elements)
 		{
 			try

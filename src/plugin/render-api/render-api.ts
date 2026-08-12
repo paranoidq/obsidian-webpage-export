@@ -46,7 +46,12 @@ export namespace MarkdownRendererAPI {
 		options = Object.assign(new MarkdownRendererOptions(), options);
 		const result = await _MarkdownRendererInternal.renderFile(file, options);
 		if (!result) return;
-		if (options.postProcess) await _MarkdownRendererInternal.postProcessHTML(result.contentEl, options);
+		if (options.postProcess) {
+			ExportLog.log("Post-processing rendered HTML...");
+			const startedAt = Date.now();
+			await _MarkdownRendererInternal.postProcessHTML(result.contentEl, options);
+			ExportLog.log(`Post-process finished in ${Date.now() - startedAt}ms`);
+		}
 		return result;
 	}
 
@@ -80,6 +85,10 @@ export namespace MarkdownRendererAPI {
 	export function isConvertable(extention: string) {
 		if (extention.startsWith(".")) extention = extention.substring(1);
 		return this.convertableExtensions.contains(extention);
+	}
+
+	export function isExcalidrawFile(file: TFile): boolean {
+		return _MarkdownRendererInternal.isExcalidrawFile(file);
 	}
 
 	export function checkCancelled(): boolean {
@@ -137,21 +146,35 @@ export namespace _MarkdownRendererInternal {
 	async function waitUntil(condition: () => boolean, timeout: number = 1000, interval: number = 100): Promise<boolean> {
 		if (condition()) return true;
 
-		return new Promise((resolve, reject) => {
-			let timer = 0;
+		const startedAt = Date.now();
+		return new Promise((resolve) => {
 			const intervalId = setInterval(() => {
 				if (condition()) {
 					clearInterval(intervalId);
 					resolve(true);
-				} else {
-					timer += interval;
-					if (timer >= timeout) {
-						clearInterval(intervalId);
-						resolve(false);
-					}
+				} else if (Date.now() - startedAt >= timeout) {
+					clearInterval(intervalId);
+					resolve(false);
 				}
 			}, interval);
 		});
+	}
+
+	async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T | undefined> {
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		try {
+			return await Promise.race([
+				promise,
+				new Promise<undefined>((resolve) => {
+					timer = setTimeout(() => {
+						ExportLog.warning(`Timed out after ${timeoutMs}ms: ${label}`);
+						resolve(undefined);
+					}, timeoutMs);
+				}),
+			]);
+		} finally {
+			if (timer) clearTimeout(timer);
+		}
 	}
 
 	function unfoldHiddenPreviewContainers(root: HTMLElement): HTMLElement[]
@@ -184,10 +207,16 @@ export namespace _MarkdownRendererInternal {
 	}
 
 	const EXCALIDRAW_FALLBACK_MARKER = "Switch to EXCALIDRAW VIEW";
+	const EXCALIDRAW_CREATE_SVG_TIMEOUT_MS = 8000;
+	const EXCALIDRAW_CREATE_PNG_TIMEOUT_MS = 20000;
+	const excalidrawSvgCache = new Map<string, HTMLElement>();
+	const excalidrawSvgInflight = new Map<string, Promise<HTMLElement | undefined>>();
+	/** embedPath -> { hostNotePath, line0 } for markdown-context placement */
+	const excalidrawEmbedLocations = new Map<string, { hostPath: string; line0: number }>();
 
-	function isExcalidrawFile(file: TFile): boolean
+	export function isExcalidrawFile(file: TFile): boolean
 	{
-		if (file.extension === "excalidraw" || file.path.endsWith(".excalidraw.md")) return true;
+		if (file.extension === "excalidraw" || file.extension === "drawing" || file.path.endsWith(".excalidraw.md")) return true;
 		return app.metadataCache.getFileCache(file)?.frontmatter?.["excalidraw-plugin"] != undefined;
 	}
 
@@ -239,22 +268,539 @@ export namespace _MarkdownRendererInternal {
 		return undefined;
 	}
 
+	function embedHasRenderedExcalidraw(element: HTMLElement): boolean
+	{
+		if (element.querySelector(".excalidraw-svg, .excalidraw-plugin")) return true;
+		// Raw drawing notes include this marker until Excalidraw replaces the embed.
+		if ((element.textContent ?? "").includes(EXCALIDRAW_FALLBACK_MARKER)) return false;
+		if (element.querySelector("pre > code, .language-compressed-json")) return false;
+		if (element.querySelector("img[src], svg")) return true;
+		return false;
+	}
+
+	function isLikelyExcalidrawEmbed(element: HTMLElement): boolean
+	{
+		if ((element.textContent ?? "").includes(EXCALIDRAW_FALLBACK_MARKER)) return true;
+		if (embedHasRenderedExcalidraw(element)) return true;
+		const src = element.getAttribute("src") ?? "";
+		if (src.includes(".excalidraw") || src.endsWith(".drawing")) return true;
+		const title = element.querySelector(".markdown-embed-title")?.textContent ?? "";
+		if (title.includes(".excalidraw") || title.endsWith(".drawing")) return true;
+		return false;
+	}
+
+	function hasPendingGenericPluginBlocks(root: HTMLElement): boolean
+	{
+		const empties = Array.from(root.querySelectorAll("[class^='block-language-']:empty")) as HTMLElement[];
+		return empties.some((element) => {
+			const embed = element.closest(".internal-embed, .markdown-embed") as HTMLElement | null;
+			if (embed && isLikelyExcalidrawEmbed(embed)) return false;
+			return true;
+		});
+	}
+
+	function escapeAttrSelectorValue(value: string): string
+	{
+		return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+	}
+
+	function rememberExcalidrawEmbedLocations(sourceFile: TFile): void
+	{
+		const cache = app.metadataCache.getFileCache(sourceFile);
+		for (const embed of cache?.embeds ?? [])
+		{
+			const target = app.metadataCache.getFirstLinkpathDest(embed.link, sourceFile.path);
+			if (!(target instanceof TFile) || !isExcalidrawFile(target)) continue;
+			const line0 = embed.position?.start?.line;
+			if (line0 == null) continue;
+			excalidrawEmbedLocations.set(target.path, { hostPath: sourceFile.path, line0 });
+		}
+	}
+
+	function markExcalidrawEmbedSections(
+		sections: { lineStart: number; lineEnd: number; el: HTMLElement }[],
+		sourceFile: TFile
+	): void
+	{
+		rememberExcalidrawEmbedLocations(sourceFile);
+		const cache = app.metadataCache.getFileCache(sourceFile);
+
+		// Diagnostic: preview section line ranges often don't match metadata lines.
+		if (sections.length > 0)
+		{
+			const sample = sections.slice(0, 3).map((s) => `${s.lineStart}-${s.lineEnd}`).join(", ");
+			const last = sections[sections.length - 1];
+			ExportLog.log(`Preview section line sample: [${sample}, …, ${last.lineStart}-${last.lineEnd}] (n=${sections.length})`);
+		}
+
+		for (const embed of cache?.embeds ?? [])
+		{
+			const target = app.metadataCache.getFirstLinkpathDest(embed.link, sourceFile.path);
+			if (!(target instanceof TFile) || !isExcalidrawFile(target)) continue;
+			const line0 = embed.position?.start?.line;
+			if (line0 == null) continue;
+
+			const lines = [line0, line0 + 1];
+			const containing = sections.find((s) =>
+				s.el && lines.some((line) => typeof s.lineStart === "number" && typeof s.lineEnd === "number" && s.lineStart <= line && line <= s.lineEnd)
+			);
+			if (containing?.el)
+			{
+				containing.el.setAttribute("data-excalidraw-export", target.path);
+				ExportLog.log(`Marked section lines ${containing.lineStart}-${containing.lineEnd} for ${target.path}`);
+				continue;
+			}
+
+			const before = sections
+				.filter((s) => s.el && typeof s.lineEnd === "number" && s.lineEnd < line0)
+				.sort((a, b) => b.lineEnd - a.lineEnd)[0];
+			if (before?.el)
+			{
+				before.el.setAttribute("data-excalidraw-insert-after", target.path);
+				ExportLog.log(`Marked insert-after section ${before.lineStart}-${before.lineEnd} for ${target.path}`);
+				continue;
+			}
+
+			const after = sections
+				.filter((s) => s.el && typeof s.lineStart === "number" && s.lineStart > line0)
+				.sort((a, b) => a.lineStart - b.lineStart)[0];
+			if (after?.el)
+			{
+				after.el.setAttribute("data-excalidraw-insert-before", target.path);
+				ExportLog.log(`Marked insert-before section ${after.lineStart}-${after.lineEnd} for ${target.path}`);
+				continue;
+			}
+
+			ExportLog.log(`No section line anchors for Excalidraw at metadata line ${line0}; will use markdown text placement`);
+		}
+	}
+
+	function getExcalidrawFilesFromMetadata(sourceFile: TFile): TFile[]
+	{
+		rememberExcalidrawEmbedLocations(sourceFile);
+		const cache = app.metadataCache.getFileCache(sourceFile);
+		const files: TFile[] = [];
+		const seen = new Set<string>();
+		for (const embed of cache?.embeds ?? [])
+		{
+			const target = app.metadataCache.getFirstLinkpathDest(embed.link, sourceFile.path);
+			if (!(target instanceof TFile) || !isExcalidrawFile(target) || seen.has(target.path)) continue;
+			seen.add(target.path);
+			files.push(target);
+		}
+		return files;
+	}
+
+	function findBlockContainingText(root: HTMLElement, needle: string): HTMLElement | undefined
+	{
+		if (!needle) return;
+		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+		let node: Node | null;
+		while ((node = walker.nextNode()))
+		{
+			if (!node.textContent?.includes(needle)) continue;
+			const block = (node.parentElement?.closest(
+				".markdown-preview-section, .el-p, .el-h1, .el-h2, .el-h3, .el-h4, .el-h5, .el-h6, p, li, h1, h2, h3, h4, h5, h6"
+			) as HTMLElement | null) ?? node.parentElement ?? undefined;
+			if (block && root.contains(block)) return block;
+		}
+		return;
+	}
+
+	async function placeSlotByMarkdownContext(root: HTMLElement, sourceFile: TFile, embedLine0: number, slot: HTMLElement): Promise<boolean>
+	{
+		const md = await app.vault.cachedRead(sourceFile);
+		const lines = md.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+
+		const normalize = (raw: string) =>
+			raw.trim()
+				.replace(/!\[\[.*?\]\]/g, "")
+				.replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, "$1")
+				.replace(/[*_`~>#]/g, "")
+				.trim();
+
+		for (let i = embedLine0 + 1; i < Math.min(lines.length, embedLine0 + 25); i++)
+		{
+			const plain = normalize(lines[i] ?? "");
+			if (plain.length < 8) continue;
+			const needle = plain.slice(0, 36);
+			const block = findBlockContainingText(root, needle);
+			if (!block) continue;
+			block.before(slot);
+			ExportLog.log(`Placed Excalidraw before text «${needle}»`);
+			return true;
+		}
+
+		for (let i = embedLine0 - 1; i >= Math.max(0, embedLine0 - 25); i--)
+		{
+			const plain = normalize(lines[i] ?? "");
+			if (plain.length < 8) continue;
+			const needle = plain.slice(0, 36);
+			const block = findBlockContainingText(root, needle);
+			if (!block) continue;
+			block.after(slot);
+			ExportLog.log(`Placed Excalidraw after text «${needle}»`);
+			return true;
+		}
+
+		return false;
+	}
+
+	async function ensureExcalidrawSlot(root: HTMLElement, file: TFile, sourceFile: TFile): Promise<HTMLElement>
+	{
+		const escaped = escapeAttrSelectorValue(file.path);
+		const existing = root.querySelector(`[data-excalidraw-export="${escaped}"]`) as HTMLElement | null;
+		if (existing) return existing;
+
+		const slot = document.createElement("div");
+		slot.className = "internal-embed excalidraw-export-slot";
+		slot.setAttribute("data-excalidraw-export", file.path);
+
+		const afterAnchor = root.querySelector(`[data-excalidraw-insert-after="${escaped}"]`);
+		if (afterAnchor)
+		{
+			afterAnchor.after(slot);
+			return slot;
+		}
+
+		const beforeAnchor = root.querySelector(`[data-excalidraw-insert-before="${escaped}"]`);
+		if (beforeAnchor)
+		{
+			beforeAnchor.before(slot);
+			return slot;
+		}
+
+		const loc = excalidrawEmbedLocations.get(file.path);
+		if (loc && loc.hostPath === sourceFile.path)
+		{
+			const placed = await placeSlotByMarkdownContext(root, sourceFile, loc.line0, slot);
+			if (placed) return slot;
+		}
+
+		root.appendChild(slot);
+		ExportLog.warning(`Excalidraw slot appended at end for ${file.path}`);
+		return slot;
+	}
+
 	function getExcalidrawAutomate(): any | undefined
 	{
 		// @ts-ignore
 		return window.ExcalidrawAutomate ?? app.plugins?.plugins?.["obsidian-excalidraw-plugin"]?.ea;
 	}
 
-	async function renderExcalidrawSvgFromFile(file: TFile, restoreFile: TFile): Promise<SVGElement | undefined>
+	async function readCompanionExcalidrawSvg(file: TFile): Promise<SVGElement | undefined>
 	{
-		const ea = getExcalidrawAutomate();
-		if (ea?.createSVG)
+		const folder = file.parent?.path ? file.parent.path + "/" : "";
+		const baseName = file.basename.replace(/\.excalidraw$/i, "");
+		const candidates = [
+			`${folder}${file.basename}.svg`,
+			`${folder}${baseName}.svg`,
+			`${folder}${file.basename}.light.svg`,
+			`${folder}${baseName}.light.svg`,
+		];
+
+		for (const path of candidates)
+		{
+			const svgFile = app.vault.getAbstractFileByPath(path);
+			if (!(svgFile instanceof TFile)) continue;
+			try
+			{
+				const text = await app.vault.read(svgFile);
+				if (!text.includes("<svg")) continue;
+				const parsed = new DOMParser().parseFromString(text, "image/svg+xml");
+				const svg = parsed.documentElement;
+				if (svg instanceof SVGSVGElement) return document.importNode(svg, true);
+			}
+			catch (error)
+			{
+				ExportLog.warning(error, `Failed reading companion SVG ${path}`);
+			}
+		}
+
+		return undefined;
+	}
+
+	async function inlineSvgImageHrefs(svg: SVGElement, sourceFile: TFile): Promise<number>
+	{
+		const images = Array.from(svg.querySelectorAll("image"));
+		let inlined = 0;
+
+		for (const image of images)
+		{
+			const href =
+				image.getAttribute("href") ??
+				image.getAttributeNS("http://www.w3.org/1999/xlink", "href") ??
+				"";
+			if (!href || href.startsWith("data:")) continue;
+
+			let file: TFile | undefined;
+			let linkPath = href;
+
+			if (linkPath.startsWith("app://"))
+			{
+				try
+				{
+					// @ts-ignore
+					file = app.vault.resolveFileUrl(linkPath) ?? undefined;
+				}
+				catch { /* fall through */ }
+
+				if (!file)
+				{
+					linkPath = decodeURIComponent(linkPath)
+						.replace(/^app:\/\/[^/]+\//, "")
+						.split("?")[0]
+						.split("#")[0];
+					// Strip absolute vault prefix if present
+					const adapter = app.vault.adapter as { basePath?: string };
+					const vaultPath = adapter.basePath?.replace(/\\/g, "/");
+					if (vaultPath && linkPath.startsWith(vaultPath))
+						linkPath = linkPath.substring(vaultPath.length).replace(/^\//, "");
+					const abstract = app.vault.getAbstractFileByPath(linkPath);
+					if (abstract instanceof TFile) file = abstract;
+				}
+			}
+			else
+			{
+				linkPath = decodeURIComponent(linkPath).split("?")[0].split("#")[0].split("|")[0];
+				const dest = app.metadataCache.getFirstLinkpathDest(linkPath, sourceFile.path);
+				if (dest instanceof TFile) file = dest;
+			}
+
+			if (!file)
+			{
+				// Try beside the drawing / in its attachments folder
+				const baseName = linkPath.split("/").pop() ?? linkPath;
+				const parentPath = sourceFile.parent?.path ?? "";
+				const guesses = [
+					baseName,
+					`${parentPath}/${baseName}`,
+					`${parentPath}/attachments/${baseName}`,
+					linkPath,
+				];
+				for (const guess of guesses)
+				{
+					const abstract = app.vault.getAbstractFileByPath(guess);
+					if (abstract instanceof TFile)
+					{
+						file = abstract;
+						break;
+					}
+					const dest = app.metadataCache.getFirstLinkpathDest(guess, sourceFile.path);
+					if (dest instanceof TFile)
+					{
+						file = dest;
+						break;
+					}
+				}
+			}
+
+			if (!file)
+			{
+				ExportLog.warning(`Could not resolve Excalidraw image href: ${href.slice(0, 160)}`);
+				continue;
+			}
+
+			try
+			{
+				const data = Buffer.from(await app.vault.readBinary(file));
+				const ext = file.extension.toLowerCase();
+				const mime =
+					ext === "svg" ? "image/svg+xml" :
+					ext === "jpg" || ext === "jpeg" ? "image/jpeg" :
+					ext === "png" ? "image/png" :
+					ext === "gif" ? "image/gif" :
+					ext === "webp" ? "image/webp" :
+					`image/${ext || "png"}`;
+				const dataUri = `data:${mime};base64,${data.toString("base64")}`;
+				image.setAttribute("href", dataUri);
+				image.setAttributeNS("http://www.w3.org/1999/xlink", "href", dataUri);
+				inlined++;
+			}
+			catch (error)
+			{
+				ExportLog.warning(error, `Failed inlining Excalidraw image ${file.path}`);
+			}
+		}
+
+		return inlined;
+	}
+
+	async function countExcalidrawEmbeddedFiles(file: TFile): Promise<number>
+	{
+		try
+		{
+			const md = await app.vault.cachedRead(file);
+			const section = md.split(/##\s+Embedded Files\b/i)[1]?.split(/##\s+|%%/)[0] ?? "";
+			return (section.match(/:\s*\[\[.+?\]\]/g) ?? []).length;
+		}
+		catch
+		{
+			return 0;
+		}
+	}
+
+	function countRenderableSvgImages(svg: SVGElement): { total: number; data: number; external: number }
+	{
+		const images = Array.from(svg.querySelectorAll("image, img"));
+		let data = 0;
+		let external = 0;
+		for (const image of images)
+		{
+			const href =
+				image.getAttribute("href") ??
+				image.getAttributeNS("http://www.w3.org/1999/xlink", "href") ??
+				image.getAttribute("src") ??
+				"";
+			if (!href) continue;
+			if (href.startsWith("data:")) data++;
+			else external++;
+		}
+		return { total: data + external, data, external };
+	}
+
+	function svgLooksComplete(svg: SVGElement, expectedImages: number): boolean
+	{
+		const counts = countRenderableSvgImages(svg);
+		const markup = svg.outerHTML ?? "";
+		if (markup.length < 400) return false;
+		// Unresolved app:// (or other) hrefs become broken images in standalone HTML.
+		if (counts.external > 0) return false;
+		if (expectedImages > 0 && counts.data < expectedImages) return false;
+		return true;
+	}
+
+	async function blobToDataUri(blob: Blob): Promise<string>
+	{
+		const buffer = Buffer.from(await blob.arrayBuffer());
+		const mime = blob.type || "image/png";
+		return `data:${mime};base64,${buffer.toString("base64")}`;
+	}
+
+	async function waitForExcalidrawViewReady(expectedImages: number, timeoutMs = 12000): Promise<any | undefined>
+	{
+		const started = Date.now();
+		while (Date.now() - started < timeoutMs)
+		{
+			if (checkCancelled() || !renderLeaf) return;
+			const view = renderLeaf.view as any;
+			if (view?.getViewType?.() === "excalidraw")
+			{
+				const sceneFiles = Object.keys(view.excalidrawData?.scene?.files ?? {}).length;
+				const dictFiles = Object.keys(view.filesStore ?? view.imagesDict ?? {}).length;
+				const loaded = Math.max(sceneFiles, dictFiles);
+				const hasScene = !!view.excalidrawData?.scene?.elements?.length;
+				if (hasScene && (expectedImages === 0 || loaded >= expectedImages || Date.now() - started > timeoutMs * 0.7))
+				{
+					ExportLog.log(`Excalidraw view ready (sceneFiles=${sceneFiles}, dict=${dictFiles}, expected=${expectedImages})`);
+					return view;
+				}
+			}
+			await delay(100);
+		}
+		const view = renderLeaf?.view as any;
+		if (view?.getViewType?.() === "excalidraw") return view;
+		return;
+	}
+
+	async function restoreRenderLeafFile(restoreFile: TFile, drawingPath: string): Promise<void>
+	{
+		if (!renderLeaf || restoreFile.path === drawingPath) return;
+		try
+		{
+			await renderLeaf.openFile(restoreFile, { active: false });
+		}
+		catch { /* ignore restore failures */ }
+	}
+
+	async function renderExcalidrawPngElement(file: TFile, ea: any, expectedImages: number): Promise<HTMLElement | undefined>
+	{
+		if (!ea?.createPNG) return;
+		try
+		{
+			ea.reset?.();
+			const created = await withTimeout(
+				Promise.resolve(ea.createPNG(file.path, 2, { withBackground: true, withTheme: true })),
+				EXCALIDRAW_CREATE_PNG_TIMEOUT_MS,
+				`ExcalidrawAutomate.createPNG(${file.path})`
+			);
+			let blob: Blob | undefined;
+			if (created instanceof Blob) blob = created;
+			else if (created && typeof (created as any).arrayBuffer === "function") blob = created as Blob;
+			if (!blob || blob.size < 256)
+			{
+				ExportLog.warning(`createPNG returned empty/tiny blob for ${file.path}`);
+				return;
+			}
+			// Nested screenshots should inflate the PNG well beyond a bare wireframe.
+			if (expectedImages > 0 && blob.size < Math.max(8_000, expectedImages * 4_000))
+			{
+				ExportLog.warning(`createPNG too small (${blob.size} B) for ${expectedImages} embedded file(s); treating as incomplete`);
+				return;
+			}
+
+			const img = document.createElement("img");
+			img.className = "excalidraw-svg excalidraw-export-img";
+			img.setAttribute("data-export-excalidraw", "1");
+			img.alt = file.basename;
+			img.src = await blobToDataUri(blob);
+			ExportLog.log(`createPNG finished for ${file.path} (${Math.round(blob.size / 1024)} KB)`);
+			return img;
+		}
+		catch (error)
+		{
+			ExportLog.warning(error, `ExcalidrawAutomate.createPNG failed for ${file.path}`);
+			return;
+		}
+	}
+
+	async function renderExcalidrawSvgElement(file: TFile, ea: any | undefined, view: any | undefined, expectedImages: number): Promise<SVGElement | undefined>
+	{
+		let svg: SVGElement | undefined;
+
+		const companion = await readCompanionExcalidrawSvg(file);
+		if (companion && svgLooksComplete(companion, expectedImages))
+		{
+			svg = companion;
+			ExportLog.log(`Used companion SVG for ${file.path}`);
+		}
+
+		if (!svg && view?.excalidrawData?.scene && view?.svg)
+		{
+			try
+			{
+				const created = await withTimeout(
+					Promise.resolve(view.svg(view.excalidrawData.scene, "", false)),
+					EXCALIDRAW_CREATE_SVG_TIMEOUT_MS,
+					`excalidraw view.svg(${file.path})`
+				);
+				if (created instanceof SVGSVGElement)
+				{
+					svg = created;
+					ExportLog.log(`view.svg finished for ${file.path}`);
+				}
+			}
+			catch (error)
+			{
+				ExportLog.warning(error, `view.svg failed for ${file.path}`);
+			}
+		}
+
+		if (!svg && ea?.createSVG)
 		{
 			try
 			{
 				ea.reset?.();
-				const svg = await ea.createSVG(file.path);
-				if (svg instanceof SVGSVGElement) return svg;
+				const created = await withTimeout(
+					Promise.resolve(ea.createSVG(file.path)),
+					EXCALIDRAW_CREATE_SVG_TIMEOUT_MS,
+					`ExcalidrawAutomate.createSVG(${file.path})`
+				);
+				if (created instanceof SVGSVGElement)
+				{
+					svg = created;
+					ExportLog.log(`createSVG finished for ${file.path}`);
+				}
 			}
 			catch (error)
 			{
@@ -262,69 +808,158 @@ export namespace _MarkdownRendererInternal {
 			}
 		}
 
-		if (!renderLeaf) return;
-
-		try
+		if (!svg) return;
+		const inlined = await inlineSvgImageHrefs(svg, file);
+		const counts = countRenderableSvgImages(svg);
+		ExportLog.log(`Inlined ${inlined} image(s) inside Excalidraw SVG for ${file.path} (data=${counts.data}, external=${counts.external}, expected=${expectedImages})`);
+		if (!svgLooksComplete(svg, expectedImages))
 		{
-			await renderLeaf.openFile(file, { active: false });
-			await delay(500);
-
-			const view = renderLeaf.view as any;
-			if (view?.getViewType?.() !== "excalidraw" || !view?.excalidrawData?.scene || !view?.svg) return;
-
-			return await view.svg(view.excalidrawData.scene, "", false);
-		}
-		catch (error)
-		{
-			ExportLog.warning(error, `Failed to render Excalidraw SVG for ${file.path}`);
+			ExportLog.warning(`Rejecting incomplete Excalidraw SVG for ${file.path}`);
 			return;
 		}
-		finally
+		return svg;
+	}
+
+	async function renderExcalidrawExportElement(file: TFile, restoreFile: TFile): Promise<HTMLElement | undefined>
+	{
+		const cached = excalidrawSvgCache.get(file.path);
+		if (cached) return cached.cloneNode(true) as HTMLElement;
+
+		const inflight = excalidrawSvgInflight.get(file.path);
+		if (inflight)
 		{
-			if (restoreFile.path !== file.path)
+			const shared = await inflight;
+			return shared ? shared.cloneNode(true) as HTMLElement : undefined;
+		}
+
+		const task = (async (): Promise<HTMLElement | undefined> => {
+			const startedAt = Date.now();
+			const expectedImages = await countExcalidrawEmbeddedFiles(file);
+			ExportLog.log(`Rendering Excalidraw export for ${file.path} (embedded files=${expectedImages})...`);
+
+			const ea = getExcalidrawAutomate();
+			let view: any | undefined;
+			let element: HTMLElement | undefined;
+
+			// Fast path: EA APIs load the template + EmbeddedFilesLoader without opening the editor.
+			if (ea)
+			{
+				element = await renderExcalidrawPngElement(file, ea, expectedImages);
+			}
+			if (!element)
+			{
+				const svg = await renderExcalidrawSvgElement(file, ea, undefined, expectedImages);
+				if (svg)
+				{
+					const isLight = !svg.getAttribute("filter");
+					if (!isLight) svg.removeAttribute("filter");
+					svg.classList.add(isLight ? "light" : "dark");
+					const wrapper = document.createElement("div");
+					wrapper.classList.add("excalidraw-svg");
+					wrapper.setAttribute("data-export-excalidraw", "1");
+					wrapper.appendChild(svg);
+					element = wrapper;
+				}
+			}
+
+			// Slow path: open the drawing so scene files populate, then retry.
+			if (!element && renderLeaf)
 			{
 				try
 				{
-					await renderLeaf?.openFile(restoreFile, { active: false });
+					ExportLog.log(`Opening Excalidraw view to load embedded files for ${file.path}...`);
+					await renderLeaf.openFile(file, { active: false });
+					view = await waitForExcalidrawViewReady(expectedImages);
+					if (ea) element = await renderExcalidrawPngElement(file, ea, expectedImages);
+					if (!element)
+					{
+						const svg = await renderExcalidrawSvgElement(file, ea, view, expectedImages);
+						if (svg)
+						{
+							const isLight = !svg.getAttribute("filter");
+							if (!isLight) svg.removeAttribute("filter");
+							svg.classList.add(isLight ? "light" : "dark");
+							const wrapper = document.createElement("div");
+							wrapper.classList.add("excalidraw-svg");
+							wrapper.setAttribute("data-export-excalidraw", "1");
+							wrapper.appendChild(svg);
+							element = wrapper;
+						}
+					}
 				}
-				catch { /* ignore restore failures */ }
+				catch (error)
+				{
+					ExportLog.warning(error, `Failed opening Excalidraw view for ${file.path}`);
+				}
+				finally
+				{
+					await restoreRenderLeafFile(restoreFile, file.path);
+				}
 			}
+
+			if (!element)
+			{
+				ExportLog.warning(`Could not render Excalidraw embed: ${file.path}`);
+				return;
+			}
+
+			ExportLog.log(`Excalidraw export element ready for ${file.path} in ${Date.now() - startedAt}ms`);
+			excalidrawSvgCache.set(file.path, element.cloneNode(true) as HTMLElement);
+			return element;
+		})();
+
+		excalidrawSvgInflight.set(file.path, task);
+		try
+		{
+			const element = await task;
+			return element ? element.cloneNode(true) as HTMLElement : undefined;
 		}
+		finally
+		{
+			excalidrawSvgInflight.delete(file.path);
+		}
+	}
+
+	function applyExcalidrawExportToEmbed(target: HTMLElement, element: HTMLElement): void
+	{
+		target.classList.add("internal-embed");
+		target.innerHTML = "";
+		target.appendChild(element);
 	}
 
 	async function fixFallbackExcalidrawEmbeds(root: HTMLElement, sourceFile: TFile): Promise<void>
 	{
+		ExportLog.log("Processing Excalidraw embeds...");
+		const startedAt = Date.now();
+
 		// @ts-ignore
-		if (!app.plugins?.enabledPlugins?.has("obsidian-excalidraw-plugin")) return;
-
-		const fallbackEls = Array.from(root.querySelectorAll(".internal-embed, .markdown-embed, .admonition-content, .callout-content"))
-			.filter((element) => (element.textContent ?? "").includes(EXCALIDRAW_FALLBACK_MARKER)) as HTMLElement[];
-		const seen = new Set<HTMLElement>();
-
-		for (const fallbackEl of fallbackEls)
+		if (!app.plugins?.enabledPlugins?.has("obsidian-excalidraw-plugin"))
 		{
-			const target = (fallbackEl.closest(".internal-embed") ?? fallbackEl.closest(".markdown-embed") ?? fallbackEl) as HTMLElement;
-			if (seen.has(target)) continue;
-			seen.add(target);
-
-			const file = getFallbackEmbedFile(target, sourceFile);
-			if (!file) continue;
-
-			const svg = await renderExcalidrawSvgFromFile(file, sourceFile);
-			if (!svg) continue;
-
-			const isLight = !svg.getAttribute("filter");
-			if (!isLight) svg.removeAttribute("filter");
-			svg.classList.add(isLight ? "light" : "dark");
-
-			const wrapper = document.createElement("div");
-			wrapper.classList.add("excalidraw-svg");
-			wrapper.appendChild(svg);
-
-			const embedBody = target.querySelector(".markdown-embed-content") ?? target.querySelector(".markdown-embed") ?? target;
-			embedBody.innerHTML = "";
-			embedBody.appendChild(wrapper);
+			ExportLog.log("Excalidraw plugin not enabled; skipping embed recovery");
+			return;
 		}
+
+		const metaFiles = getExcalidrawFilesFromMetadata(sourceFile);
+		ExportLog.log(`Metadata lists ${metaFiles.length} Excalidraw embed(s)`);
+		if (metaFiles.length === 0) return;
+
+		for (const file of metaFiles)
+		{
+			const target = await ensureExcalidrawSlot(root, file, sourceFile);
+			if (target.querySelector("[data-export-excalidraw='1']")) continue;
+
+			const element = await renderExcalidrawExportElement(file, sourceFile);
+			if (!element)
+			{
+				ExportLog.warning(`Could not render Excalidraw embed: ${file.path}`);
+				continue;
+			}
+
+			applyExcalidrawExportToEmbed(target, element);
+			ExportLog.log(`Injected Excalidraw export into DOM for ${file.path}`);
+		}
+
+		ExportLog.log(`Excalidraw embed processing finished in ${Date.now() - startedAt}ms`);
 	}
 
 	function failRender(file: TFile | undefined, message: any): undefined {
@@ -503,8 +1138,8 @@ export namespace _MarkdownRendererInternal {
 				ExportLog.warning("Transclusions were not rendered correctly in file " + preview.file.name + "!");
 			}
 
-			// wait for generic plugins
-			await waitUntil(() => !section.el.querySelector("[class^='block-language-']:empty") || checkCancelled(), 500, 1);
+			// wait for generic plugins (skip Excalidraw embed placeholders; recovered later)
+			await waitUntil(() => !hasPendingGenericPluginBlocks(section.el) || checkCancelled(), 500, 1);
 			if (checkCancelled()) return undefined;
 
 			await fixFallbackExcalidrawEmbeds(section.el, preview.file);
@@ -759,16 +1394,15 @@ export namespace _MarkdownRendererInternal {
 			);
 		}
 
-		// wait for generic plugins
+		// wait for generic plugins (skip Excalidraw embed placeholders; recovered later)
 		ExportLog.log("Waiting for generic plugins to render...");
+		const genericPluginsStartedAt = Date.now();
 		await waitUntil(
-			() =>
-				!preview.containerEl.querySelector(
-					"[class^='block-language-']:empty"
-				) || checkCancelled(),
+			() => !hasPendingGenericPluginBlocks(preview.containerEl) || checkCancelled(),
 			2000,
 			16
 		);
+		ExportLog.log(`Generic plugin wait finished in ${Date.now() - genericPluginsStartedAt}ms`);
 		if (checkCancelled()) return undefined;
 
 		// check for invalid plugin blocks
@@ -776,7 +1410,10 @@ export namespace _MarkdownRendererInternal {
 			preview.containerEl.querySelectorAll(
 				"[class^='block-language-']:empty"
 			)
-		);
+		).filter((block) => {
+			const embed = (block as HTMLElement).closest(".internal-embed, .markdown-embed") as HTMLElement | null;
+			return !(embed && isLikelyExcalidrawEmbed(embed));
+		});
 		for (const block of invalidPluginBlocks) {
 			ExportLog.warning(
 				`Plugin element ${
@@ -787,15 +1424,14 @@ export namespace _MarkdownRendererInternal {
 			);
 		}
 
-		await fixFallbackExcalidrawEmbeds(preview.containerEl, preview.file);
-		if (checkCancelled()) return undefined;
-
 		// convert canvas elements into images here because otherwise they will lose their data when moved
+		const canvasStartedAt = Date.now();
 		const canvases = Array.from(
-			preview.containerEl.querySelectorAll(
+			sizerEl.querySelectorAll(
 				"canvas:not(.pdf-embed canvas)"
 			)
 		) as HTMLCanvasElement[];
+		ExportLog.log(`Converting ${canvases.length} canvas element(s)...`);
 		for (const canvas of canvases) {
 			// wait until the canvas is rendered
 			ExportLog.log("Waiting for canvas-based plugin to render...");
@@ -814,6 +1450,11 @@ export namespace _MarkdownRendererInternal {
 			image.style.maxWidth = "100%";
 			canvas.replaceWith(image);
 		}
+		ExportLog.log(`Canvas conversion finished in ${Date.now() - canvasStartedAt}ms`);
+
+		// Mark which preview sections own Excalidraw embeds (export leaf often never
+		// materializes the embed DOM, so we inject by section line mapping later).
+		markExcalidrawEmbedSections(sections, preview.file);
 
 		// refold callouts
 		for (const callout of foldedCallouts) {
@@ -832,7 +1473,22 @@ export namespace _MarkdownRendererInternal {
 			});
 		}
 
-		newSizerEl.innerHTML = sizerEl.innerHTML;
+		const cloneStartedAt = Date.now();
+		// cloneNode avoids HTML serialize/parse of large Excalidraw SVGs (innerHTML is a major stall)
+		for (const child of Array.from(sizerEl.childNodes)) {
+			newSizerEl.appendChild(child.cloneNode(true));
+		}
+		ExportLog.log(`Cloned preview DOM in ${Date.now() - cloneStartedAt}ms`);
+		if (checkCancelled()) return undefined;
+
+		// Stop live preview work (Excalidraw native SVG, Number Headings refresh, etc.)
+		// so it cannot stall the rest of the export on the shared UI thread.
+		try {
+			sizerEl.empty();
+			ExportLog.log("Cleared live preview to stop background plugin work");
+		} catch { /* ignore */ }
+
+		// Inject Excalidraw into the exported clone via createSVG (not native preview)
 		await fixFallbackExcalidrawEmbeds(newSizerEl, preview.file);
 		if (checkCancelled()) return undefined;
 
@@ -848,9 +1504,12 @@ export namespace _MarkdownRendererInternal {
 			newMarkdownEl.outerHTML = newSizerEl.innerHTML;
 		}
 
+		ExportLog.log("Appending rendered document to export container...");
 		options.container?.appendChild(newMarkdownEl);
 
 		if (options.unifyTitleFormat) {
+			ExportLog.log("Applying unified title format...");
+			const titleStartedAt = Date.now();
 			let title = await _MarkdownRendererInternal.getTitleForFile(
 				preview.file
 			);
@@ -869,8 +1528,10 @@ export namespace _MarkdownRendererInternal {
 				preview.file,
 				options
 			);
+			ExportLog.log(`Title format finished in ${Date.now() - titleStartedAt}ms`);
 		}
 
+		ExportLog.log("Markdown view render complete");
 		return newMarkdownEl;
 	}
 
@@ -1011,7 +1672,9 @@ export namespace _MarkdownRendererInternal {
 				}
 
 				if (iconProperty && typeof iconProperty == "string" && iconProperty.trim() != "") {
-					if (file instanceof TFile)
+					// Never write frontmatter during export — it retriggers preview plugins
+					// (Number Headings, Excalidraw, etc.) and can stall the export leaf.
+					if (!batchStarted && file instanceof TFile)
 						app.fileManager.processFrontMatter(file, (frontmatter) => {
 							frontmatter.icon = iconProperty;
 						});
@@ -1392,6 +2055,9 @@ export namespace _MarkdownRendererInternal {
 		loadingContainer = undefined;
 		logContainer = undefined;
 		logShowing = false;
+		excalidrawSvgCache.clear();
+		excalidrawSvgInflight.clear();
+		excalidrawEmbedLocations.clear();
 		batchDocument.open();
 		if (!batchDocument.body) {
 			batchDocument.write("<body></body>");
@@ -1465,6 +2131,9 @@ export namespace _MarkdownRendererInternal {
 		renderLeaf = undefined;
 		loadingContainer = undefined;
 		fileListContainer = undefined;
+		excalidrawSvgCache.clear();
+		excalidrawSvgInflight.clear();
+		excalidrawEmbedLocations.clear();
 
 		batchStarted = false;
 	}

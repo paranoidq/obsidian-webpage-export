@@ -376,14 +376,17 @@ export class Website
 
 			try
 			{
+				ExportLog.log(`Rendering document: ${webpage.source.path}`);
 				const rendered = await webpage.renderDocument();
 				if (!rendered) continue;
 				await Utils.delay(0);
 				
+				ExportLog.log(`Collecting attachments: ${webpage.source.path}`);
 				const attachments = await webpage.getAttachments();
 				await Utils.delay(0);
 				this.index.addFiles(attachments);
 				await Utils.delay(0);
+				ExportLog.log(`Building webpage features: ${webpage.source.path}`);
 				const built = await webpage.build();
 				await Utils.delay(0);
 				if (built) await this.index.addFile(webpage, this.cascadeContext != undefined);
@@ -392,6 +395,7 @@ export class Website
 				if (!this.exportOptions.combineAsSingleFile)
 					await webpage.download();
 				
+				ExportLog.log(`Webpage finished: ${webpage.source.path}`);
 				if (this.exportOptions.autoDisposeWebpages)
 					webpage.dispose();
 			}
