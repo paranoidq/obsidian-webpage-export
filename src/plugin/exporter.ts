@@ -16,13 +16,14 @@ import {
 
 export class HTMLExporter
 {
-	static async updateSettings(usePreviousSettings: boolean = false, overrideFiles: TFile[] | undefined = undefined, overrideExportPath: Path | undefined = undefined, lockPickedFiles: boolean = false): Promise<ExportInfo | undefined>
+	static async updateSettings(usePreviousSettings: boolean = false, overrideFiles: TFile[] | undefined = undefined, overrideExportPath: Path | undefined = undefined, lockPickedFiles: boolean = false, cascadeOptions: boolean = false): Promise<ExportInfo | undefined>
 	{
 		if (!usePreviousSettings) 
 		{
 			const modal = new ExportModal();
 			if(overrideFiles) modal.overridePickedFiles(overrideFiles);
 			if(lockPickedFiles && overrideFiles) modal.lockPickedFiles(overrideFiles);
+			if(cascadeOptions) modal.enableCascadeOptions();
 			return await modal.open();
 		}
 		
@@ -35,6 +36,7 @@ export class HTMLExporter
 			const modal = new ExportModal();
 			if(overrideFiles) modal.overridePickedFiles(overrideFiles);
 			if(lockPickedFiles && overrideFiles) modal.lockPickedFiles(overrideFiles);
+			if(cascadeOptions) modal.enableCascadeOptions();
 			return await modal.open();
 		}
 
@@ -59,13 +61,14 @@ export class HTMLExporter
 
 	public static async exportCascadeFromEntry(entryFile: TFile, usePreviousSettings: boolean = false, overrideExportPath: Path | undefined = undefined)
 	{
-		const info = await this.updateSettings(usePreviousSettings, [entryFile], overrideExportPath, true);
+		const info = await this.updateSettings(usePreviousSettings, [entryFile], overrideExportPath, true, true);
 		if ((!info && !usePreviousSettings) || (info && info.canceled)) return;
 
 		const exportPath = overrideExportPath ?? info?.exportPath ?? new Path(Settings.exportOptions.exportPath);
 		const exportRoot = new Path(entryFile.path).parent?.path ?? "";
+		const parseEntryAsDirectory = info?.parseEntryAsDirectory ?? true;
 
-		if (entryFile.extension === "md")
+		if (parseEntryAsDirectory && entryFile.extension === "md")
 		{
 			const markdown = await app.vault.read(entryFile);
 			const sections = splitMarkdownByH1(markdown);
@@ -86,7 +89,7 @@ export class HTMLExporter
 			}
 		}
 
-		const cascadeContext = CascadeExportResolver.collect(entryFile);
+		const cascadeContext = CascadeExportResolver.collect(entryFile, parseEntryAsDirectory);
 		const website = await HTMLExporter.exportFiles(
 			cascadeContext.pageFiles,
 			exportPath,

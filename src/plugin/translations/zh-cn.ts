@@ -80,6 +80,10 @@ export const language: i18n =
 			title: "PDF 文本可选中",
 			description: "打印时改用浏览器能够嵌入的字体，PDF 里的文字才能正常选中、复制和搜索。打印出的字体会与网页略有不同。",
 		},
+		parseEntryAsDirectory: {
+			title: "将文件作为目录解析",
+			description: "关闭后不按入口结构拆分，也不生成侧边栏目录树（仅本次导出）。",
+		},
 		exportButton: "导出",
 		filePicker:
 		{

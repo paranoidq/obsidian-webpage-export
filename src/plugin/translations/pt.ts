@@ -80,6 +80,10 @@ export const language: i18n =
 			title: "Selectable text in PDF",
 			description: "Print with fonts the browser can embed, so text in the PDF stays selectable, copyable and searchable. Printed pages use a slightly different typeface than the web page.",
 		},
+		parseEntryAsDirectory: {
+			title: "Analisar arquivo como diretório",
+			description: "Quando desativado, não divide a entrada por estrutura e não gera a árvore de arquivos da barra lateral (somente nesta exportação).",
+		},
 		exportButton: "Exportar",
 		filePicker: 
 		{

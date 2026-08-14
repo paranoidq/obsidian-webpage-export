@@ -146,7 +146,7 @@ export class Website
 		}
 
 		// inject file tree
-		if (this.exportOptions.fileNavigationOptions.enabled)
+		if (this.shouldIncludeFileNavigation())
 		{
 			const fileTreeElContainer = document.body.createDiv();
 			fileTreeElContainer.innerHTML = this.fileTreeAsset.getHTML(this.exportOptions);
@@ -162,6 +162,13 @@ export class Website
 			let string = AssetHandler.customHeadContent.getHTML(this.exportOptions);
 			template.insertFeatureString(string, this.exportOptions.customHeadOptions);
 		}
+	}
+
+	private shouldIncludeFileNavigation(): boolean
+	{
+		if (!this.exportOptions.fileNavigationOptions.enabled) return false;
+		if (this.cascadeContext && !this.cascadeContext.parseEntryAsDirectory) return false;
+		return true;
 	}
 
 	private findCommonRootPath(files: { path: string }[]): string {
@@ -274,7 +281,7 @@ export class Website
 		try
 		{
 			// create file tree asset
-			if (this.exportOptions.fileNavigationOptions.enabled)
+			if (this.shouldIncludeFileNavigation())
 			{
 				if (this.cascadeContext)
 				{

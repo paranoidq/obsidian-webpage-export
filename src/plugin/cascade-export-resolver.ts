@@ -38,6 +38,8 @@ export class CascadeExportContext
 	public readonly entryOutputFileName?: string;
 	public readonly entryDisplayTitle?: string;
 	public readonly entrySectionIndex?: number;
+	/** When false, skip content-tree parsing and sidebar file-tree generation. */
+	public readonly parseEntryAsDirectory: boolean;
 	private readonly resourceSourcePaths: Set<string>;
 
 	constructor(
@@ -45,7 +47,8 @@ export class CascadeExportContext
 		pageFiles: TFile[],
 		resourceFiles: TFile[],
 		nodes: Map<string, CascadeExportNode>,
-		sectionOptions?: CascadeSectionOptions
+		sectionOptions?: CascadeSectionOptions,
+		parseEntryAsDirectory: boolean = true
 	)
 	{
 		this.entryFile = entryFile;
@@ -59,6 +62,7 @@ export class CascadeExportContext
 		this.entryOutputFileName = sectionOptions?.entryOutputFileName;
 		this.entryDisplayTitle = sectionOptions?.entryDisplayTitle;
 		this.entrySectionIndex = sectionOptions?.entrySectionIndex;
+		this.parseEntryAsDirectory = parseEntryAsDirectory;
 	}
 
 	public getNode(sourcePath: string): CascadeExportNode | undefined
@@ -79,21 +83,21 @@ export class CascadeExportContext
 
 export class CascadeExportResolver
 {
-	public static collect(entryFile: TFile): CascadeExportContext
+	public static collect(entryFile: TFile, parseEntryAsDirectory: boolean = true): CascadeExportContext
 	{
-		return this.collectInternal(entryFile);
+		return this.collectInternal(entryFile, undefined, parseEntryAsDirectory);
 	}
 
 	/**
 	 * Build a cascade graph scoped to links found in `sectionMarkdown` from the entry,
 	 * then BFS through linked pages using normal file metadata.
 	 */
-	public static collectFromSection(entryFile: TFile, sectionOptions: CascadeSectionOptions): CascadeExportContext
+	public static collectFromSection(entryFile: TFile, sectionOptions: CascadeSectionOptions, parseEntryAsDirectory: boolean = true): CascadeExportContext
 	{
-		return this.collectInternal(entryFile, sectionOptions);
+		return this.collectInternal(entryFile, sectionOptions, parseEntryAsDirectory);
 	}
 
-	private static collectInternal(entryFile: TFile, sectionOptions?: CascadeSectionOptions): CascadeExportContext
+	private static collectInternal(entryFile: TFile, sectionOptions?: CascadeSectionOptions, parseEntryAsDirectory: boolean = true): CascadeExportContext
 	{
 		const pageFiles: TFile[] = [];
 		const resourceFiles: TFile[] = [];
@@ -156,7 +160,7 @@ export class CascadeExportResolver
 			}
 		}
 
-		return new CascadeExportContext(entryFile, pageFiles, resourceFiles, nodes, sectionOptions);
+		return new CascadeExportContext(entryFile, pageFiles, resourceFiles, nodes, sectionOptions, parseEntryAsDirectory);
 	}
 
 	private static isCascadePageFile(file: TFile): boolean

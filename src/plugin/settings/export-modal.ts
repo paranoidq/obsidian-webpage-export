@@ -18,6 +18,8 @@ export interface ExportInfo
 	pickedFiles: TFile[];
 	exportPath: Path;
 	validPath: boolean;
+	/** Cascade-only: whether to parse the entry as a directory tree (session-only, default true). */
+	parseEntryAsDirectory: boolean;
 }
 
 export class ExportModal extends Modal 
@@ -28,6 +30,8 @@ export class ExportModal extends Modal
 	private filePicker: FilePickerTree;
 	private pickedFiles: TFile[] | undefined = undefined;
 	private pickedFilesLocked: boolean = false;
+	private cascadeOptionsEnabled: boolean = false;
+	private parseEntryAsDirectory: boolean = true;
 	private validPath: boolean = true;
 	public static title: string = i18n.exportModal.title;
 
@@ -46,6 +50,12 @@ export class ExportModal extends Modal
 	{
 		this.pickedFiles = files;
 		this.pickedFilesLocked = true;
+	}
+
+	enableCascadeOptions()
+	{
+		this.cascadeOptionsEnabled = true;
+		this.parseEntryAsDirectory = true;
 	}
 
 	/**
@@ -184,6 +194,17 @@ export class ExportModal extends Modal
 		
 
 		createToggle(contentEl, lang.openAfterExport, () => Settings.openAfterExport, (value) => Settings.openAfterExport = value);
+
+		if (this.cascadeOptionsEnabled)
+		{
+			createToggle(
+				contentEl,
+				lang.parseEntryAsDirectory.title,
+				() => this.parseEntryAsDirectory,
+				(value) => { this.parseEntryAsDirectory = value; },
+				lang.parseEntryAsDirectory.description,
+			);
+		}
 
 		const compressionLabels = lang.imageCompression;
 		createDropdown(
@@ -324,7 +345,13 @@ export class ExportModal extends Modal
 		
 		if (!this.pickedFilesLocked) this.pickedFiles = this.filePicker.getSelectedFiles();
 		this.filePickerModalEl?.remove();
-		this.exportInfo = { canceled: this.canceled, pickedFiles: this.pickedFiles ?? [], exportPath: new Path(Settings.exportOptions.exportPath), validPath: this.validPath};
+		this.exportInfo = {
+			canceled: this.canceled,
+			pickedFiles: this.pickedFiles ?? [],
+			exportPath: new Path(Settings.exportOptions.exportPath),
+			validPath: this.validPath,
+			parseEntryAsDirectory: this.cascadeOptionsEnabled ? this.parseEntryAsDirectory : true,
+		};
 
 		return this.exportInfo;
 	}

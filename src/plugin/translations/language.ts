@@ -85,6 +85,10 @@ export interface i18n
 			title: string;
 			description: string;
 		};
+		parseEntryAsDirectory: {
+			title: string;
+			description: string;
+		};
 		exportButton: string;
 		filePicker: 
 		{
