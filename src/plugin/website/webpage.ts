@@ -14,6 +14,7 @@ import { moment } from "obsidian";
 import { Utils } from "src/plugin/utils/utils";
 import { clipRenderedContentToH1Section } from "src/plugin/utils/h1-split";
 import { compressImageToDataUri, getCompressOptionsForLevel, toDataUri } from "src/plugin/utils/image-compressor";
+import { escapeCssForHtmlStyleTag } from "src/plugin/utils/css-html-safe";
 
 export class WebpageOutputData
 {
@@ -658,7 +659,7 @@ img, video, audio, canvas`).forEach((heading) => heading.remove());
 			const mathStyleEl = document.createElement("style");
 			mathStyleEl.id = "MJX-CHTML-styles";
 			await AssetHandler.mathjaxStyles.load();
-			mathStyleEl.innerHTML = AssetHandler.mathjaxStyles.data as string;
+			mathStyleEl.textContent = escapeCssForHtmlStyleTag(AssetHandler.mathjaxStyles.data as string);
 			this.viewElement?.prepend(mathStyleEl);
 		}
 

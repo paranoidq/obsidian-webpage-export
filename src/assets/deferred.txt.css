@@ -16,6 +16,25 @@ body
     background-color: #ffffff;
 }
 
+/*
+ * Export shell: the page is a viewport-sized app, and the article pane
+ * must be the scroller. Obsidian's `body { overflow: clip; contain: strict }`
+ * plus themes (Border card-layout remaps `.workspace` → `#main-horizontal`
+ * with overflow:hidden) otherwise clip the document with no scrollbar.
+ */
+@media not print {
+	html,
+	body {
+		height: 100% !important;
+		max-height: 100% !important;
+		width: 100% !important;
+		margin: 0 !important;
+		padding: 0 !important;
+		overflow: hidden !important;
+		contain: none !important;
+	}
+}
+
 /*#region Sidebars */
 
 .sidebar {
@@ -301,15 +320,28 @@ body
 	width: 100%;
 	align-items: stretch;
 	justify-content: center;
+	min-height: 0;
+	overflow: hidden;
 }
 
 #main-horizontal {
     display: flex;
     flex-direction: row;
-	flex-grow: 1;
+	flex: 1 1 0;
     width: 100%;
     align-items: stretch;
     justify-content: center;
+	min-height: 0;
+	min-width: 0;
+	overflow: hidden;
+}
+
+#left-content,
+#right-content,
+#center-content.leaf,
+.leaf {
+	min-height: 0;
+	height: 100%;
 }
 
 #center-content 
@@ -323,6 +355,9 @@ body
     align-items: center;
     transition: opacity 0.2s ease-in-out;
     contain: inline-size;
+	min-height: 0;
+	min-width: 0;
+	overflow: hidden;
 }
 
 .hide
@@ -342,14 +377,18 @@ body
     width: -moz-available;
     width: fill-available;
     transition: background-color var(--color-fade-speed) ease-in-out;
-    border-top-right-radius: var(--window-radius, var(--radius-m));
-    border-top-left-radius: var(--window-radius, var(--radius-m));
+	/* This element is the page scroller. Keep it flush with the viewport —
+	 * top radius here reads as a fixed "card chrome" while only the text moves. */
+	border-radius: 0 !important;
+	background-color: var(--background-primary, #ffffff);
     overflow-x: hidden !important;
     overflow-y: auto !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     contain: inline-size;
+	flex: 1 1 0 !important;
+	min-height: 0 !important;
 }
 
 body #center-content>.obsidian-document>.markdown-preview-sizer 
@@ -466,8 +505,91 @@ body #center-content>.obsidian-document>.markdown-preview-sizer
     opacity: 0;
     padding: 1em;
     inset: 50%;
-    translate: -50% -50%;
+	translate: -50% -50%;
     border-radius: var(--radius-s);
 }
 
 /*#endregion */
+
+/* Border paints a card chrome frame on `.workspace::before` (remapped to
+ * #main-horizontal). In the export shell that frame sits on a non-scrolling
+ * ancestor, so it looks like a fixed box while the article scrolls inside.
+ * Hide it outside true card-layout mode (those body classes are stripped). */
+#main-horizontal::before,
+#main-horizontal::after {
+	content: none !important;
+	display: none !important;
+	pointer-events: none !important;
+	box-shadow: none !important;
+}
+
+/*
+ * Border draws a colored vertical bar with hN::before, and restyles the
+ * fold chevron via -webkit-mask-image. In the export DOM those masks often
+ * fail (SVG data URLs with <?xml> / <style>), so the Lucide triangle shows
+ * as orange shards. Force the bar on .heading and hide the chevron stroke.
+ */
+.obsidian-document :is(h1, h2, h3, h4, h5, h6).heading {
+	position: relative !important;
+}
+
+.obsidian-document :is(h1, h2, h3, h4, h5, h6).heading::before {
+	content: " " !important;
+	display: block !important;
+	position: absolute !important;
+	left: 0 !important;
+	top: 0.3em !important;
+	width: 3px !important;
+	height: calc(1em - 4px) !important;
+	min-height: 0.65em !important;
+	border-radius: 2px !important;
+	background-image: none !important;
+	-webkit-mask-image: none !important;
+	mask-image: none !important;
+}
+
+.obsidian-document h1.heading::before { background-color: var(--h1-accent-color, var(--color-red)) !important; }
+.obsidian-document h2.heading::before { background-color: var(--h2-accent-color, var(--color-orange)) !important; }
+.obsidian-document h3.heading::before { background-color: var(--h3-accent-color, var(--color-yellow)) !important; }
+.obsidian-document h4.heading::before { background-color: var(--h4-accent-color, var(--color-green)) !important; }
+.obsidian-document h5.heading::before { background-color: var(--h5-accent-color, var(--color-blue)) !important; }
+.obsidian-document h6.heading::before { background-color: var(--h6-accent-color, var(--color-purple)) !important; }
+
+.obsidian-document .heading > .heading-collapse-indicator svg.svg-icon {
+	-webkit-mask-size: contain;
+	mask-size: contain;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-position: center;
+	mask-position: center;
+}
+
+.obsidian-document .heading > .heading-collapse-indicator svg.svg-icon path {
+	stroke: none !important;
+	fill: none !important;
+}
+
+/*
+ * Border paints blockquote accents with blockquote::before. A mis-remapped
+ * file-icon rule can attach a repeating SVG mask to every ::before and shred
+ * that bar into pen-shaped shards. Force a clean solid accent bar.
+ */
+.obsidian-document blockquote {
+	position: relative !important;
+}
+
+.obsidian-document blockquote::before {
+	content: "" !important;
+	display: block !important;
+	position: absolute !important;
+	top: var(--blockquote-padding, 8px) !important;
+	bottom: var(--blockquote-padding, 8px) !important;
+	inset-inline-start: var(--blockquote-padding, 8px) !important;
+	width: var(--blockquote-border-thickness, 3px) !important;
+	border-radius: var(--radius-s, 4px) !important;
+	background-color: var(--blockquote-border-color, var(--interactive-accent)) !important;
+	background-image: none !important;
+	-webkit-mask-image: none !important;
+	mask-image: none !important;
+	pointer-events: none !important;
+}

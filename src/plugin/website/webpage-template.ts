@@ -144,6 +144,7 @@ export class WebpageTemplate
 	}
 
 	private static readonly ignoreClasses = ["publish", "css-settings-manager", "theme-light", "theme-dark"];
+	private static readonly ignoreClassPrefixes = ["card-layout"];
 	public static async getValidBodyClasses(): Promise<string>
 	{
 		const bodyClasses = Array.from(document.body.classList); 
@@ -183,7 +184,11 @@ export class WebpageTemplate
 		{
 			ExportLog.progress(0, "Collecting valid classes", "Scanning: " + bodyClass, "var(--color-yellow)");
 
-			if (classes.includes(bodyClass) && !WebpageTemplate.ignoreClasses.includes(bodyClass))
+			if (
+				classes.includes(bodyClass)
+				&& !WebpageTemplate.ignoreClasses.includes(bodyClass)
+				&& !WebpageTemplate.ignoreClassPrefixes.some(prefix => bodyClass.startsWith(prefix))
+			)
 			{
 				validClasses += bodyClass + " ";
 			}

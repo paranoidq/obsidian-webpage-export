@@ -1347,7 +1347,7 @@ img.is-broken-image {
 	transform-origin: center center;
 	transition: transform 0.08s ease-out;
 	line-height: 0;
-	cursor: pointer;
+	cursor: grab;
 	touch-action: none;
 }
 
@@ -1356,10 +1356,17 @@ img.is-broken-image {
 	transition: none;
 }
 
+.image-lightbox-stage.is-code {
+	line-height: normal;
+}
+
 .image-lightbox-image {
 	display: block;
-	max-width: 90vw;
-	max-height: 85vh;
+	/* Sizing is handled by JS fitToViewport (90% viewport, keep aspect ratio) */
+	max-width: none;
+	max-height: none;
+	width: auto;
+	height: auto;
 	object-fit: contain;
 	border-radius: var(--radius-l, 8px);
 	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
@@ -1369,6 +1376,34 @@ img.is-broken-image {
 
 .image-lightbox-svg {
 	background: var(--background-primary, #ffffff);
+}
+
+.image-lightbox-code {
+	max-width: none;
+	max-height: none;
+	width: max-content;
+	margin: 0;
+	padding: 1em 1.25em;
+	overflow: visible;
+	white-space: pre;
+	text-align: left;
+	font-size: var(--code-size, 0.875em);
+	/* Opaque code panel only; lightbox backdrop stays semi-transparent */
+	background: #ffffff !important;
+	background-color: #ffffff !important;
+	color: var(--code-normal, var(--text-normal));
+	border-radius: var(--radius-l, 8px);
+	opacity: 1 !important;
+}
+
+body.theme-dark .image-lightbox-code {
+	background: #1e1e1e !important;
+	background-color: #1e1e1e !important;
+}
+
+.image-lightbox-code code {
+	background: transparent !important;
+	opacity: 1 !important;
 }
 
 .image-lightbox-toolbar {
@@ -1628,7 +1663,8 @@ body.theme-light .excalidraw-plugin svg.light {
 	transform: rotate(0deg);
 }
 
-.code-block-wrapper .code-block-copy {
+.code-block-wrapper .code-block-copy,
+.code-block-wrapper .code-block-expand {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1645,7 +1681,8 @@ body.theme-light .excalidraw-plugin svg.light {
 	transition: color 0.1s ease-in-out, background-color 0.1s ease-in-out;
 }
 
-.code-block-wrapper .code-block-copy:hover {
+.code-block-wrapper .code-block-copy:hover,
+.code-block-wrapper .code-block-expand:hover {
 	color: var(--text-normal);
 	background-color: var(--background-modifier-hover);
 }
@@ -1658,7 +1695,8 @@ body.theme-light .excalidraw-plugin svg.light {
 	color: var(--text-error, var(--color-red));
 }
 
-.code-block-wrapper .code-block-copy svg {
+.code-block-wrapper .code-block-copy svg,
+.code-block-wrapper .code-block-expand svg {
 	width: 1em;
 	height: 1em;
 }

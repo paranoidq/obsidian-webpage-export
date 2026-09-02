@@ -1,13 +1,14 @@
 type ViewableSource =
 	| { type: "img"; element: HTMLImageElement }
-	| { type: "svg"; element: SVGSVGElement };
+	| { type: "svg"; element: SVGSVGElement }
+	| { type: "code"; element: HTMLElement };
 
 export class ImageViewer {
 	private static instance: ImageViewer | null = null;
 
 	private overlay: HTMLElement | null = null;
 	private stage: HTMLElement | null = null;
-	private viewEl: HTMLImageElement | SVGSVGElement | null = null;
+	private viewEl: Element | null = null;
 	private scale = 1;
 	private panX = 0;
 	private panY = 0;
@@ -56,6 +57,12 @@ export class ImageViewer {
 		root.classList.add("image-viewer-enabled");
 		root.addEventListener("click", viewer.onRootClick);
 		viewer.attachedRoots.add(root);
+	}
+
+	/** Open a code block (`<pre>`) in the same lightbox used for images. */
+	public static openCode(preEl: HTMLElement): void {
+		if (!ImageViewer.isEnabled()) return;
+		ImageViewer.getInstance().open({ type: "code", element: preEl });
 	}
 
 	private static getInstance(): ImageViewer {
@@ -242,38 +249,55 @@ export class ImageViewer {
 		this.panX = 0;
 		this.panY = 0;
 		this.stage.replaceChildren();
+		this.stage.classList.toggle("is-code", source.type === "code");
 
 		if (source.type === "img") {
 			const imageEl = source.element.cloneNode(true) as HTMLImageElement;
 			imageEl.src = source.element.currentSrc || source.element.src;
 			imageEl.alt = source.element.alt || "";
 			imageEl.classList.add("image-lightbox-image");
-			const rect = source.element.getBoundingClientRect();
-			if (rect.width > 0 && rect.height > 0) {
-				imageEl.style.width = `${rect.width}px`;
-				imageEl.style.height = `${rect.height}px`;
-			}
+			imageEl.removeAttribute("width");
+			imageEl.removeAttribute("height");
+			imageEl.style.width = "";
+			imageEl.style.height = "";
 			this.stage.appendChild(imageEl);
 			this.viewEl = imageEl;
-
-			const onImageReady = (): void => {
-				this.applyTransform();
-			};
-			if (imageEl.complete) {
-				onImageReady();
-			} else {
-				imageEl.addEventListener("load", onImageReady, { once: true });
-			}
-		} else {
+		} else if (source.type === "svg") {
 			const svgEl = source.element.cloneNode(true) as SVGSVGElement;
 			svgEl.classList.add("image-lightbox-image", "image-lightbox-svg");
 			this.stage.appendChild(svgEl);
 			this.viewEl = svgEl;
-			this.applyTransform();
+		} else {
+			const codeEl = source.element.cloneNode(true) as HTMLElement;
+			codeEl.classList.add("image-lightbox-image", "image-lightbox-code");
+			codeEl.style.display = "";
+			codeEl.style.height = "";
+			codeEl.style.maxHeight = "";
+			codeEl.style.overflow = "";
+			codeEl.querySelectorAll("button.copy-code-button").forEach((el) => el.remove());
+			this.stage.appendChild(codeEl);
+			this.viewEl = codeEl;
 		}
 
+		// Show overlay before measuring so getBoundingClientRect is valid
 		this.overlay.classList.remove("hide");
 		document.body.classList.add("image-lightbox-open");
+
+		const fitWhenReady = (): void => {
+			this.fitToViewport();
+		};
+
+		if (source.type === "img" && this.viewEl instanceof HTMLImageElement) {
+			const imageEl = this.viewEl;
+			if (imageEl.complete && imageEl.naturalWidth > 0) {
+				fitWhenReady();
+			} else {
+				imageEl.addEventListener("load", fitWhenReady, { once: true });
+			}
+		} else {
+			// SVG / code: layout after paint
+			requestAnimationFrame(fitWhenReady);
+		}
 
 		this.keydownHandler = (event: KeyboardEvent) => {
 			if (event.key === "Escape") this.close();
@@ -308,7 +332,7 @@ export class ImageViewer {
 
 		if (this.stage) {
 			this.stage.style.transform = "";
-			this.stage.classList.remove("is-dragging");
+			this.stage.classList.remove("is-dragging", "is-code");
 		}
 
 		this.viewEl = null;
@@ -326,6 +350,10 @@ export class ImageViewer {
 		this.applyTransform();
 	}
 
+	/**
+	 * Scale content to at most 90% of the viewport on both axes while
+	 * preserving aspect ratio (uniform scale transform).
+	 */
 	private fitToViewport(): void {
 		if (!this.viewEl) return;
 
@@ -335,8 +363,18 @@ export class ImageViewer {
 		this.panY = 0;
 		this.applyTransform();
 
-		const baseWidth = this.viewEl.getBoundingClientRect().width;
-		const baseHeight = this.viewEl.getBoundingClientRect().height;
+		let baseWidth = 0;
+		let baseHeight = 0;
+
+		if (this.viewEl instanceof HTMLImageElement) {
+			baseWidth = this.viewEl.naturalWidth || this.viewEl.getBoundingClientRect().width;
+			baseHeight = this.viewEl.naturalHeight || this.viewEl.getBoundingClientRect().height;
+		} else {
+			const rect = this.viewEl.getBoundingClientRect();
+			baseWidth = rect.width;
+			baseHeight = rect.height;
+		}
+
 		if (baseWidth <= 0 || baseHeight <= 0) {
 			this.scale = previousScale;
 			this.applyTransform();

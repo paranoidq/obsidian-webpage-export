@@ -1,10 +1,13 @@
 import { slideDown, slideUp } from "./utils";
+import { ImageViewer } from "./image-viewer";
 
 const CHEVRON_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>`;
 
 const COPY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
 
 const CHECK_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>`;
+
+const EXPAND_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></svg>`;
 
 /**
  * Whitelist of code block languages that should receive a collapsible header.
@@ -50,6 +53,7 @@ export class CodeBlock
 	public headerEl: HTMLElement;
 	public foldIconEl: HTMLElement;
 	public copyButtonEl: HTMLElement;
+	public expandButtonEl: HTMLElement;
 
 	private collapsed: boolean = false;
 	private copyResetTimeout: number | null = null;
@@ -93,8 +97,16 @@ export class CodeBlock
 		copyButton.setAttribute("aria-label", "Copy");
 		copyButton.innerHTML = COPY_ICON;
 
+		const expandButton = document.createElement("button");
+		expandButton.className = "code-block-expand";
+		expandButton.setAttribute("type", "button");
+		expandButton.setAttribute("aria-label", "Expand");
+		expandButton.setAttribute("title", "Expand");
+		expandButton.innerHTML = EXPAND_ICON;
+
 		right.appendChild(foldIcon);
 		right.appendChild(copyButton);
+		right.appendChild(expandButton);
 
 		header.appendChild(dots);
 		header.appendChild(right);
@@ -106,6 +118,7 @@ export class CodeBlock
 		this.headerEl = header;
 		this.foldIconEl = foldIcon;
 		this.copyButtonEl = copyButton;
+		this.expandButtonEl = expandButton;
 
 		if (startCollapsed) this.setInitiallyCollapsed();
 
@@ -134,8 +147,8 @@ export class CodeBlock
 	{
 		this.headerEl.addEventListener("click", (event) =>
 		{
-			// don't toggle when the copy button (or its children) is clicked
-			if ((event.target as HTMLElement).closest(".code-block-copy")) return;
+			// don't toggle when action buttons (or their children) are clicked
+			if ((event.target as HTMLElement).closest(".code-block-copy, .code-block-expand")) return;
 			this.toggle();
 		});
 
@@ -145,6 +158,12 @@ export class CodeBlock
 			const text = this.getCodeText();
 			const success = await CodeBlocks.copyText(text);
 			this.showCopyFeedback(success);
+		});
+
+		this.expandButtonEl.addEventListener("click", (event) =>
+		{
+			event.stopPropagation();
+			ImageViewer.openCode(this.preEl);
 		});
 	}
 

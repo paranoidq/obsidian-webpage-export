@@ -7,6 +7,8 @@ import  mime from "mime";
 import { IncludeGenerator } from "src/plugin/features/include.js";
 import { Settings } from "src/plugin/settings/settings";
 import { AssetHandler } from "./asset-handler";
+import { wrapCssInStyleTag, escapeCssForHtmlStyleTag } from "src/plugin/utils/css-html-safe";
+import { remapExportCssSelectors } from "src/plugin/utils/css-selector-remap";
 const { minify: runMinify } = require('html-minifier-terser');
 
 export class AssetLoader extends Attachment 
@@ -51,31 +53,13 @@ export class AssetLoader extends Attachment
         if (mutability != Mutability.Child) AssetHandler.allAssets.push(this);
     }
 
-	private static readonly replacements: {[key: string]: string} = {
-		"\\[href": "[data-href",
-		"\\.search-input-": "#search-",
-		"\\.workspace-leaf-content\\[data-type.+?(markdown|pdf|canvas|kanban|excalidraw).*?\\]": "",
-		"\\.nav-files-container": "#file-explorer",
-		"\\.workspace-leaf-content": ".leaf-content",
-		"\\.leaf>.leaf-content": ".leaf .leaf-content",
-		"\\.markdown-reading-view": "#center-content",
-		"\\.markdown-preview-sizer|\\.markdown-preview-section": ".markdown-preview-sizer",
-		"\\.horizontal-main-container|\\.workspace": "#main-horizontal",
-	}
-
     public async load(): Promise<void>
     {
 		if (this.type == AssetType.Style && typeof this.data == "string")
 		{
 			this.childAssets = [];
 			this.data = await AssetHandler.getStyleChildAssets(this, false);
-			
-			// replacements
-			for (const key in AssetLoader.replacements)
-			{
-				const reg = new RegExp(key, "g");
-				this.data = this.data.replace(reg, AssetLoader.replacements[key]);
-			}
+			this.data = remapExportCssSelectors(this.data);
 		}
 
         if (this.minify)
@@ -140,7 +124,7 @@ export class AssetLoader extends Attachment
 		{
 			// add script or style tags so that minifier can minify it as html
 			if (isJS) tempContent = `<script>${tempContent}</script>`;
-			if (isCSS) tempContent = `<style>${tempContent}</style>`;
+			if (isCSS) tempContent = wrapCssInStyleTag(tempContent);
 			
 			tempContent = await runMinify(tempContent, { minifyCSS: isCSS, minifyJS: isJS, removeComments: true, collapseWhitespace: true});
 			
@@ -154,6 +138,7 @@ export class AssetLoader extends Attachment
 
 			// remove whitespace manually
 			this.data = this.data.replace(/[\n\r]+/g, "");
+			if (isCSS) this.data = escapeCssForHtmlStyleTag(this.data);
 		}
 	}
 
@@ -206,7 +191,7 @@ export class AssetLoader extends Attachment
             switch(this.type)
             {
                 case AssetType.Style:
-                    return `<style>${this.data}</style>`;
+                    return wrapCssInStyleTag(this.data as string);
                 case AssetType.Script:
                     return `<script ${this.loadMethod}>${this.data}</script>`;
 				case AssetType.Media:
