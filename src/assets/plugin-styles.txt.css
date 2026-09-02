@@ -149,6 +149,31 @@ a.tree-item-self.is-clickable {
 	width: fit-content;
 }
 
+/* Inline emoji images (Twemoji/OpenMoji/etc.) should match surrounding text size */
+img.emoji {
+	height: 1em !important;
+	width: 1em !important;
+	max-height: 1em !important;
+	max-width: 1em !important;
+	margin: 0 0.05em 0 0.1em;
+	vertical-align: -0.1em;
+	display: inline;
+	box-shadow: none !important;
+	border: none !important;
+	border-radius: 0 !important;
+	padding: 0 !important;
+}
+
+/* Page-title icon keeps its dedicated size */
+#webpage-icon img.emoji {
+	height: 100% !important;
+	width: 100% !important;
+	max-height: none !important;
+	max-width: none !important;
+	margin: 0 !important;
+	vertical-align: unset;
+}
+
 body.show-inline-title .page-title {
 	font-weight: var(--inline-title-weight);
 	font-size: var(--inline-title-size);

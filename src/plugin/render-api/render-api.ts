@@ -1768,7 +1768,7 @@ export namespace _MarkdownRendererInternal {
 		iconOutput = await IconHandler.getIcon(iconProperty ?? "");
 
 		// add iconize icon as frontmatter if iconize exists
-		const isUnchangedNotEmojiNotHTML = (iconProperty == iconOutput && iconOutput.length < 40) && !/\p{Emoji}/u.test(iconOutput) && !iconOutput.includes("<") && !iconOutput.includes(">");
+		const isUnchangedNotEmojiNotHTML = (iconProperty == iconOutput && iconOutput.length < 40) && !IconHandler.isEmojiPresentation(iconOutput) && !iconOutput.includes("<") && !iconOutput.includes(">");
 		let parsedAsIconize = false;
 
 		//@ts-ignore
@@ -1795,8 +1795,8 @@ export namespace _MarkdownRendererInternal {
 							frontmatter.icon = iconProperty;
 						});
 
-					let emojiMatch = iconProperty.trim().match(/\p{Emoji}/u);
-					let isEmoji = emojiMatch && emojiMatch.length == 1 && emojiMatch.index == 0;
+					const trimmedIcon = iconProperty.trim();
+					const isEmoji = IconHandler.isEmojiPresentation(trimmedIcon);
 
 					if (isEmoji) iconOutput = await IconHandler.getIcon(iconProperty);
 					else iconOutput = iconIdentifier + iconProperty + iconIdentifier;
@@ -2160,6 +2160,8 @@ export namespace _MarkdownRendererInternal {
 			renderEl.remove();
 		}
 
+		// Keep text-default symbols (↔™…) as text-sized glyphs instead of oversized color emoji
+		IconHandler.forceTextPresentationInElement(html);
 	}
 
 	export async function beginBatch(options: MarkdownRendererOptions) {

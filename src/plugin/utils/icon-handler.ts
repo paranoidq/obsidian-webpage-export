@@ -46,8 +46,8 @@ export namespace IconHandler
 			iconName = getLucideIcon(lucideIconName) ?? "�";
 		}
 
-		// if it's an emoji convert it into a twemoji
-		if ((/^\p{Emoji}/gu).test(iconName))
+		// Only convert true emoji (😀⚡), not text-default symbols like ↔™
+		if (IconHandler.isEmojiPresentation(iconName))
 		{
 			const codepoint = [...iconName].map(e => e.codePointAt(0)!.toString(16)).join(`-`);
 
@@ -72,5 +72,49 @@ export namespace IconHandler
 
 		return getLucideIcon(iconName.toLowerCase()) ?? iconName; // try and parse a plain lucide icon name
 	}
-	
+
+	/** True emoji like 😀⚡; excludes text-default symbols such as ↔™. */
+	export function isEmojiPresentation(text: string): boolean
+	{
+		return /^\p{Emoji_Presentation}/u.test(text);
+	}
+
+	/**
+	 * Force text presentation (U+FE0E) on text-default pictographs (e.g. ↔ / ↔️)
+	 * so macOS/iOS don't render them as oversized color emoji mid-sentence.
+	 * True emoji (😀⚡) are left unchanged.
+	 */
+	export function forceTextPresentationInElement(root: HTMLElement): void
+	{
+		const doc = root.ownerDocument ?? document;
+		const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+		const textNodes: Text[] = [];
+
+		let node = walker.nextNode();
+		while (node)
+		{
+			const parent = node.parentElement;
+			if (parent && !parent.closest("code, pre, script, style, textarea"))
+			{
+				textNodes.push(node as Text);
+			}
+			node = walker.nextNode();
+		}
+
+		for (const textNode of textNodes)
+		{
+			const value = textNode.nodeValue;
+			if (!value || !/\p{Extended_Pictographic}/u.test(value)) continue;
+
+			// Text-default pictographs → always FE0E (strip FE0F if present).
+			// Emoji_Presentation chars keep their original form.
+			const next = value.replace(/(\p{Extended_Pictographic})\uFE0F?/gu, (match, char: string) =>
+			{
+				if (/\p{Emoji_Presentation}/u.test(char)) return match;
+				return char + "\uFE0E";
+			});
+
+			if (next !== value) textNode.nodeValue = next;
+		}
+	}
 }
