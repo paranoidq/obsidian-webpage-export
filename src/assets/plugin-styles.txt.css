@@ -1378,32 +1378,65 @@ img.is-broken-image {
 	background: var(--background-primary, #ffffff);
 }
 
-.image-lightbox-code {
+/*
+ * Code lightbox host: placed under body, so wrap clone in .obsidian-document
+ * / .markdown-preview-view for theme parity with in-article code blocks.
+ * Solid underlay prevents transparent --code-background from showing the page.
+ */
+.image-lightbox-code-host {
+	width: max-content;
+	min-width: min(36rem, 70vw);
+	margin: 0;
+	padding: 0;
+	line-height: normal;
+	overflow: hidden;
+	border-radius: var(--code-radius, var(--radius-s, 6px));
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+	/* Opaque page-color underlay beneath (possibly translucent) code styles */
+	background: var(--background-primary, #ffffff);
+	background-color: var(--background-primary, #ffffff);
+	opacity: 1;
+}
+
+.image-lightbox-code-host > .markdown-preview-sizer {
+	max-width: none !important;
+	width: max-content !important;
+	min-height: 0 !important;
+	height: auto !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	padding-inline: 0 !important;
+}
+
+/* Let normal .code-block-wrapper theme styles paint the frame */
+.image-lightbox-code.code-block-wrapper {
+	width: max-content;
+	min-width: min(36rem, 70vw);
 	max-width: none;
 	max-height: none;
-	width: max-content;
-	margin: 0;
-	padding: 1em 1.25em;
-	overflow: visible;
+	margin: 0 !important;
+	opacity: 1 !important;
+	box-sizing: border-box;
+}
+
+.image-lightbox-code .code-block-header {
+	cursor: default;
+	pointer-events: none;
+}
+
+.image-lightbox-code > pre {
+	display: block !important;
+	margin: 0 !important;
+	/* Space between code text and the frame edges */
+	padding: 0.85em 1.1em !important;
+	height: auto !important;
+	max-height: none !important;
+	overflow: visible !important;
 	white-space: pre;
-	text-align: left;
-	font-size: var(--code-size, 0.875em);
-	/* Opaque code panel only; lightbox backdrop stays semi-transparent */
-	background: #ffffff !important;
-	background-color: #ffffff !important;
-	color: var(--code-normal, var(--text-normal));
-	border-radius: var(--radius-l, 8px);
-	opacity: 1 !important;
 }
 
-body.theme-dark .image-lightbox-code {
-	background: #1e1e1e !important;
-	background-color: #1e1e1e !important;
-}
-
-.image-lightbox-code code {
-	background: transparent !important;
-	opacity: 1 !important;
+.image-lightbox-code > pre > code {
+	padding: 0 !important;
 }
 
 .image-lightbox-toolbar {

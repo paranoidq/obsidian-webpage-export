@@ -163,7 +163,8 @@ export class CodeBlock
 		this.expandButtonEl.addEventListener("click", (event) =>
 		{
 			event.stopPropagation();
-			ImageViewer.openCode(this.preEl);
+			// Pass the full wrapper so the lightbox keeps header/chrome styling
+			ImageViewer.openCode(this.wrapperEl);
 		});
 	}
 

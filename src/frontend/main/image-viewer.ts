@@ -59,10 +59,10 @@ export class ImageViewer {
 		viewer.attachedRoots.add(root);
 	}
 
-	/** Open a code block (`<pre>`) in the same lightbox used for images. */
-	public static openCode(preEl: HTMLElement): void {
+	/** Open a code-block wrapper in the same lightbox used for images. */
+	public static openCode(wrapperEl: HTMLElement): void {
 		if (!ImageViewer.isEnabled()) return;
-		ImageViewer.getInstance().open({ type: "code", element: preEl });
+		ImageViewer.getInstance().open({ type: "code", element: wrapperEl });
 	}
 
 	private static getInstance(): ImageViewer {
@@ -249,7 +249,13 @@ export class ImageViewer {
 		this.panX = 0;
 		this.panY = 0;
 		this.stage.replaceChildren();
-		this.stage.classList.toggle("is-code", source.type === "code");
+		this.stage.style.transform = "";
+		const isCode = source.type === "code";
+		this.stage.classList.toggle("is-code", isCode);
+		this.overlay.classList.toggle("is-code", isCode);
+
+		const toolbar = this.overlay.querySelector(".image-lightbox-toolbar") as HTMLElement | null;
+		if (toolbar) toolbar.style.display = "";
 
 		if (source.type === "img") {
 			const imageEl = source.element.cloneNode(true) as HTMLImageElement;
@@ -268,20 +274,19 @@ export class ImageViewer {
 			this.stage.appendChild(svgEl);
 			this.viewEl = svgEl;
 		} else {
-			const codeEl = source.element.cloneNode(true) as HTMLElement;
-			codeEl.classList.add("image-lightbox-image", "image-lightbox-code");
-			codeEl.style.display = "";
-			codeEl.style.height = "";
-			codeEl.style.maxHeight = "";
-			codeEl.style.overflow = "";
-			codeEl.querySelectorAll("button.copy-code-button").forEach((el) => el.remove());
+			// Traffic-light chrome + code, no action buttons; still pan/zoom as a whole.
+			const codeEl = this.buildCodeLightboxPanel(source.element);
 			this.stage.appendChild(codeEl);
 			this.viewEl = codeEl;
 		}
 
-		// Show overlay before measuring so getBoundingClientRect is valid
 		this.overlay.classList.remove("hide");
 		document.body.classList.add("image-lightbox-open");
+
+		this.keydownHandler = (event: KeyboardEvent) => {
+			if (event.key === "Escape") this.close();
+		};
+		document.addEventListener("keydown", this.keydownHandler);
 
 		const fitWhenReady = (): void => {
 			this.fitToViewport();
@@ -295,14 +300,8 @@ export class ImageViewer {
 				imageEl.addEventListener("load", fitWhenReady, { once: true });
 			}
 		} else {
-			// SVG / code: layout after paint
 			requestAnimationFrame(fitWhenReady);
 		}
-
-		this.keydownHandler = (event: KeyboardEvent) => {
-			if (event.key === "Escape") this.close();
-		};
-		document.addEventListener("keydown", this.keydownHandler);
 
 		this.wheelHandler = (event: WheelEvent) => {
 			event.preventDefault();
@@ -314,10 +313,55 @@ export class ImageViewer {
 		});
 	}
 
+	/**
+	 * Clone the code-block wrapper (dots chrome, no action buttons) and wrap it
+	 * in the same document CSS scope as in-article blocks so theme styles match.
+	 */
+	private buildCodeLightboxPanel(wrapperEl: HTMLElement): HTMLElement {
+		const codeEl = wrapperEl.cloneNode(true) as HTMLElement;
+		codeEl.classList.add("image-lightbox-code");
+		codeEl.classList.remove("is-collapsed");
+		codeEl.style.margin = "0";
+		codeEl.style.display = "";
+
+		// Remove action buttons — keep only the traffic-light dots
+		codeEl.querySelector(".code-block-header-right")?.remove();
+
+		const pre = codeEl.querySelector(":scope > pre") as HTMLElement | null;
+		if (pre) {
+			pre.style.display = "";
+			pre.style.height = "";
+			pre.style.maxHeight = "";
+			pre.style.overflow = "";
+			pre.querySelectorAll("button.copy-code-button").forEach((el) => el.remove());
+		}
+
+		// Host mirrors article document ancestry so theme rules like
+		// `.obsidian-document pre` / `.markdown-preview-view .code-block-wrapper` apply.
+		const host = document.createElement("div");
+		host.className =
+			"image-lightbox-image image-lightbox-code-host obsidian-document markdown-preview-view";
+
+		const sourceDoc = document.querySelector(".obsidian-document");
+		if (sourceDoc) {
+			for (const cls of Array.from(sourceDoc.classList)) {
+				if (cls === "obsidian-document") continue;
+				host.classList.add(cls);
+			}
+		}
+
+		const sizer = document.createElement("div");
+		sizer.className = "markdown-preview-sizer";
+		sizer.appendChild(codeEl);
+		host.appendChild(sizer);
+		return host;
+	}
+
 	public close(): void {
 		if (!this.overlay) return;
 
 		this.overlay.classList.add("hide");
+		this.overlay.classList.remove("is-code");
 		document.body.classList.remove("image-lightbox-open");
 
 		if (this.keydownHandler) {
