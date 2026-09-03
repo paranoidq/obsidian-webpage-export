@@ -926,12 +926,27 @@ img, video, audio, canvas`).forEach((heading) => heading.remove());
 		this.pageDocument.head.innerHTML = head + this.pageDocument.head.innerHTML;
 	}
 
-	private async maybeCompressDataUri(dataUri: string): Promise<string>
+	private async maybeCompressImage(input: Buffer | string, mimeHint?: string): Promise<string>
 	{
-		const options = getCompressOptionsForLevel(this.exportOptions.imageCompressionLevel);
-		if (!options) return dataUri;
-		const compressed = await compressImageToDataUri(dataUri, undefined, options);
-		return compressed ?? dataUri;
+		const fallback = typeof input === "string"
+			? input
+			: toDataUri(mimeHint ?? "application/octet-stream", input);
+		try
+		{
+			const options = getCompressOptionsForLevel(this.exportOptions.imageCompressionLevel);
+			if (!options) return fallback;
+			const compressed = await compressImageToDataUri(
+				input,
+				typeof input === "string" ? undefined : mimeHint,
+				options,
+			);
+			return compressed ?? fallback;
+		}
+		catch (error)
+		{
+			ExportLog.warning(error, "Image compression failed, keeping original media");
+			return fallback;
+		}
 	}
 
 	/**
@@ -1001,7 +1016,7 @@ img, video, audio, canvas`).forEach((heading) => heading.remove());
 						const blob = await response.blob();
 						const buffer = Buffer.from(await blob.arrayBuffer());
 						const type = blob.type || "application/octet-stream";
-						const dataUri = await this.maybeCompressDataUri(toDataUri(type, buffer));
+						const dataUri = await this.maybeCompressImage(buffer, type);
 						const key = `blob:${rawSrc}`;
 						this.applyInlineMedia(mediaEl, key, dataUri);
 					}
@@ -1021,7 +1036,7 @@ img, video, audio, canvas`).forEach((heading) => heading.remove());
 						this.markBrokenMediaElement(mediaEl, rawSrc);
 						continue;
 					}
-					const compressed = await this.maybeCompressDataUri(dataUri);
+					const compressed = await this.maybeCompressImage(dataUri);
 					this.applyInlineMedia(mediaEl, `url:${rawSrc}`, compressed);
 					continue;
 				}
@@ -1044,8 +1059,8 @@ img, video, audio, canvas`).forEach((heading) => heading.remove());
 
 				if (filePath.isEmpty || filePath.isDirectory || filePath.isAbsolute) continue;
 
-				const base64 = await filePath.readAsString("base64");
-				if (!base64)
+				const buffer = await filePath.readAsBuffer();
+				if (!buffer)
 				{
 					this.markBrokenMediaElement(mediaEl, rawSrc);
 					continue;
@@ -1064,7 +1079,7 @@ img, video, audio, canvas`).forEach((heading) => heading.remove());
 
 				if (ext === "svg") ext += "+xml";
 
-				const dataUri = await this.maybeCompressDataUri(`data:${type}/${ext};base64,${base64}`);
+				const dataUri = await this.maybeCompressImage(buffer, `${type}/${ext}`);
 				const vaultFile = app.vault.getFileByPath(filePath.pathname);
 				const key = vaultFile
 					? `vault:${vaultFile.path}`

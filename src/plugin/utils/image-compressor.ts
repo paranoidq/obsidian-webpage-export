@@ -45,11 +45,24 @@ export function isCompressibleImageMime(mime: string): boolean
 
 export function parseDataUri(dataUri: string): { mime: string; buffer: Buffer } | undefined
 {
-	const match = /^data:([^;,]+);base64,([\s\S]+)$/i.exec(dataUri);
-	if (!match) return undefined;
+	// Do not use a capturing regex here. V8 Irregexp can throw
+	// "Maximum call stack size exceeded" on multi-megabyte data URIs.
 	try
 	{
-		return { mime: match[1], buffer: Buffer.from(match[2], "base64") };
+		if (typeof dataUri !== "string") return undefined;
+		const prefix = "data:";
+		if (dataUri.length < prefix.length) return undefined;
+		if (dataUri.slice(0, prefix.length).toLowerCase() !== prefix) return undefined;
+		const comma = dataUri.indexOf(",", prefix.length);
+		if (comma < 0) return undefined;
+		const header = dataUri.slice(prefix.length, comma);
+		const marker = ";base64";
+		if (!header.toLowerCase().endsWith(marker)) return undefined;
+		const mime = header.slice(0, -marker.length).trim();
+		if (!mime) return undefined;
+		const payload = dataUri.slice(comma + 1);
+		if (!payload) return undefined;
+		return { mime, buffer: Buffer.from(payload, "base64") };
 	}
 	catch
 	{
@@ -127,6 +140,22 @@ async function pickOutputMime(canvas: HTMLCanvasElement, hasAlpha: boolean, qual
  * than the input; otherwise returns undefined (caller keeps original).
  */
 export async function compressImageToDataUri(
+	input: Buffer | ArrayBuffer | string,
+	mimeHint?: string,
+	options: CompressOptions = DEFAULT_COMPRESS_OPTIONS,
+): Promise<string | undefined>
+{
+	try
+	{
+		return await compressImageToDataUriInner(input, mimeHint, options);
+	}
+	catch
+	{
+		return undefined;
+	}
+}
+
+async function compressImageToDataUriInner(
 	input: Buffer | ArrayBuffer | string,
 	mimeHint?: string,
 	options: CompressOptions = DEFAULT_COMPRESS_OPTIONS,
