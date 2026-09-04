@@ -767,6 +767,7 @@ body.is-phone {
 		#search-results,
 		.code-block-header,
 		.callout-expand,
+		.table-expand,
 		.copy-code-button,
 		.collapse-indicator,
 		.heading-collapse-indicator,
@@ -1358,7 +1359,8 @@ img.is-broken-image {
 }
 
 .image-lightbox-stage.is-code,
-.image-lightbox-stage.is-callout {
+.image-lightbox-stage.is-callout,
+.image-lightbox-stage.is-table {
 	line-height: normal;
 }
 
@@ -1487,6 +1489,40 @@ img.is-broken-image {
 	height: auto !important;
 	max-height: none !important;
 	overflow: visible !important;
+}
+
+.image-lightbox-table-host {
+	width: max-content;
+	max-width: none;
+	margin: 0;
+	padding: 0.75rem;
+	line-height: normal;
+	overflow: hidden;
+	border-radius: var(--radius-s, 6px);
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+	background: var(--background-primary, #ffffff);
+	background-color: var(--background-primary, #ffffff);
+	opacity: 1;
+}
+
+.image-lightbox-table-host > .markdown-preview-sizer {
+	max-width: none !important;
+	width: max-content !important;
+	min-height: 0 !important;
+	height: auto !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	padding-inline: 0 !important;
+}
+
+.image-lightbox-table,
+.image-lightbox-table table {
+	width: max-content !important;
+	max-width: none !important;
+	margin: 0 !important;
+	table-layout: auto !important;
+	opacity: 1 !important;
+	box-sizing: border-box;
 }
 
 .image-lightbox-toolbar {
@@ -1808,6 +1844,55 @@ body.theme-light .excalidraw-plugin svg.light {
 }
 
 .callout-title .callout-expand svg {
+	width: 1em;
+	height: 1em;
+}
+
+.table-lightbox-host,
+.table-wrapper.table-lightbox-enabled {
+	position: relative;
+}
+
+.table-expand {
+	position: absolute;
+	top: 0.35em;
+	right: 0.35em;
+	z-index: 3;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	width: 2em;
+	height: 2em;
+	min-width: 2em;
+	min-height: 2em;
+	padding: 0;
+	margin: 0;
+	border: none;
+	border-radius: var(--radius-s, 4px);
+	flex-shrink: 0;
+	background-color: var(--background-primary, #ffffff);
+	color: var(--text-muted);
+	cursor: pointer;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.12s ease-in-out, color 0.1s ease-in-out, background-color 0.1s ease-in-out;
+}
+
+.table-lightbox-host:hover > .table-expand,
+.table-wrapper.table-lightbox-enabled:hover > .table-expand,
+.table-expand:focus-visible {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.table-expand:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-hover, var(--background-secondary, #f0f0f0));
+}
+
+.table-expand svg {
 	width: 1em;
 	height: 1em;
 }

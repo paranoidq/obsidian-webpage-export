@@ -2,7 +2,8 @@ type ViewableSource =
 	| { type: "img"; element: HTMLImageElement }
 	| { type: "svg"; element: SVGSVGElement }
 	| { type: "code"; element: HTMLElement }
-	| { type: "callout"; element: HTMLElement };
+	| { type: "callout"; element: HTMLElement }
+	| { type: "table"; element: HTMLElement };
 
 export class ImageViewer {
 	private static instance: ImageViewer | null = null;
@@ -40,6 +41,8 @@ export class ImageViewer {
 
 	private static readonly VIEWPORT_FIT_RATIO = 0.9;
 
+	private static readonly EXPAND_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></svg>`;
+
 	public static isEnabled(): boolean {
 		const meta = ObsidianSite.metadata;
 		if (meta?.ignoreMetadata) return false;
@@ -58,6 +61,7 @@ export class ImageViewer {
 		root.classList.add("image-viewer-enabled");
 		root.addEventListener("click", viewer.onRootClick);
 		viewer.attachedRoots.add(root);
+		viewer.addTableExpandButtons(root);
 	}
 
 	/** Open a code-block wrapper in the same lightbox used for images. */
@@ -70,6 +74,12 @@ export class ImageViewer {
 	public static openCallout(calloutEl: HTMLElement): void {
 		if (!ImageViewer.isEnabled()) return;
 		ImageViewer.getInstance().open({ type: "callout", element: calloutEl });
+	}
+
+	/** Open a table in the same lightbox used for images and code blocks. */
+	public static openTable(tableEl: HTMLElement): void {
+		if (!ImageViewer.isEnabled()) return;
+		ImageViewer.getInstance().open({ type: "table", element: tableEl });
 	}
 
 	private static getInstance(): ImageViewer {
@@ -157,6 +167,46 @@ export class ImageViewer {
 				: container.querySelector(":scope > svg");
 
 		return primarySvg === svg;
+	}
+
+	private addTableExpandButtons(root: HTMLElement): void {
+		const tables = Array.from(root.querySelectorAll("table")) as HTMLTableElement[];
+		for (const table of tables) {
+			if (table.closest(".image-lightbox")) continue;
+			if (!this.isInDocumentContent(table)) continue;
+			if (table.closest(".table-lightbox-host, .table-lightbox-enabled")) continue;
+
+			const host = this.ensureTableHost(table);
+			if (host.querySelector(":scope > .table-expand")) continue;
+
+			const button = document.createElement("button");
+			button.className = "table-expand";
+			button.setAttribute("type", "button");
+			button.setAttribute("aria-label", "Expand");
+			button.setAttribute("title", "Expand");
+			button.innerHTML = ImageViewer.EXPAND_ICON;
+			host.appendChild(button);
+
+			button.addEventListener("click", (event) => {
+				event.preventDefault();
+				event.stopPropagation();
+				ImageViewer.openTable(table);
+			});
+		}
+	}
+
+	private ensureTableHost(table: HTMLTableElement): HTMLElement {
+		const parent = table.parentElement;
+		if (parent?.classList.contains("table-wrapper")) {
+			parent.classList.add("table-lightbox-enabled");
+			return parent;
+		}
+
+		const host = document.createElement("div");
+		host.className = "table-lightbox-host";
+		parent?.insertBefore(host, table);
+		host.appendChild(table);
+		return host;
 	}
 
 	private ensureOverlay(): void {
@@ -257,11 +307,13 @@ export class ImageViewer {
 		this.panY = 0;
 		this.stage.replaceChildren();
 		this.stage.style.transform = "";
-		const isPanel = source.type === "code" || source.type === "callout";
+		const isPanel = source.type === "code" || source.type === "callout" || source.type === "table";
 		this.stage.classList.toggle("is-code", isPanel);
 		this.stage.classList.toggle("is-callout", source.type === "callout");
+		this.stage.classList.toggle("is-table", source.type === "table");
 		this.overlay.classList.toggle("is-code", isPanel);
 		this.overlay.classList.toggle("is-callout", source.type === "callout");
+		this.overlay.classList.toggle("is-table", source.type === "table");
 
 		const toolbar = this.overlay.querySelector(".image-lightbox-toolbar") as HTMLElement | null;
 		if (toolbar) toolbar.style.display = "";
@@ -286,6 +338,10 @@ export class ImageViewer {
 			const calloutEl = this.buildCalloutLightboxPanel(source.element);
 			this.stage.appendChild(calloutEl);
 			this.viewEl = calloutEl;
+		} else if (source.type === "table") {
+			const tableEl = this.buildTableLightboxPanel(source.element);
+			this.stage.appendChild(tableEl);
+			this.viewEl = tableEl;
 		} else {
 			// Traffic-light chrome + code, no action buttons; still pan/zoom as a whole.
 			const codeEl = this.buildCodeLightboxPanel(source.element);
@@ -411,11 +467,51 @@ export class ImageViewer {
 		return host;
 	}
 
+	/**
+	 * Clone a table (or its .table-wrapper) with in-article styles so wide
+	 * tables can be inspected at native column width, then scaled in the box.
+	 */
+	private buildTableLightboxPanel(sourceEl: HTMLElement): HTMLElement {
+		const clone = sourceEl.cloneNode(true) as HTMLElement;
+		clone.classList.add("image-lightbox-table");
+		clone.style.margin = "0";
+		clone.style.display = "";
+		clone.style.overflow = "visible";
+		clone.querySelectorAll(".table-expand").forEach((el) => el.remove());
+
+		const table = clone.tagName === "TABLE"
+			? clone
+			: clone.querySelector("table");
+		if (table instanceof HTMLElement) {
+			table.style.width = "max-content";
+			table.style.maxWidth = "none";
+			table.style.tableLayout = "auto";
+		}
+
+		const host = document.createElement("div");
+		host.className =
+			"image-lightbox-image image-lightbox-table-host obsidian-document markdown-preview-view";
+
+		const sourceDoc = document.querySelector(".obsidian-document");
+		if (sourceDoc) {
+			for (const cls of Array.from(sourceDoc.classList)) {
+				if (cls === "obsidian-document") continue;
+				host.classList.add(cls);
+			}
+		}
+
+		const sizer = document.createElement("div");
+		sizer.className = "markdown-preview-sizer";
+		sizer.appendChild(clone);
+		host.appendChild(sizer);
+		return host;
+	}
+
 	public close(): void {
 		if (!this.overlay) return;
 
 		this.overlay.classList.add("hide");
-		this.overlay.classList.remove("is-code", "is-callout");
+		this.overlay.classList.remove("is-code", "is-callout", "is-table");
 		document.body.classList.remove("image-lightbox-open");
 
 		if (this.keydownHandler) {
@@ -430,7 +526,7 @@ export class ImageViewer {
 
 		if (this.stage) {
 			this.stage.style.transform = "";
-			this.stage.classList.remove("is-dragging", "is-code", "is-callout");
+			this.stage.classList.remove("is-dragging", "is-code", "is-callout", "is-table");
 		}
 
 		this.viewEl = null;
