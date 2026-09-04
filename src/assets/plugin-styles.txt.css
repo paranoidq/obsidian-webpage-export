@@ -766,6 +766,7 @@ body.is-phone {
 		.graph-view-container,
 		#search-results,
 		.code-block-header,
+		.callout-expand,
 		.copy-code-button,
 		.collapse-indicator,
 		.heading-collapse-indicator,
@@ -1326,7 +1327,7 @@ img.is-broken-image {
 	position: fixed;
 	inset: 0;
 	z-index: 10000;
-	background: rgba(0, 0, 0, 0.6);
+	background: rgba(0, 0, 0, 0.8);
 }
 
 .image-lightbox.hide {
@@ -1356,7 +1357,8 @@ img.is-broken-image {
 	transition: none;
 }
 
-.image-lightbox-stage.is-code {
+.image-lightbox-stage.is-code,
+.image-lightbox-stage.is-callout {
 	line-height: normal;
 }
 
@@ -1437,6 +1439,54 @@ img.is-broken-image {
 
 .image-lightbox-code > pre > code {
 	padding: 0 !important;
+}
+
+/*
+ * Callout lightbox host: same document-scope wrap as code so theme
+ * `.obsidian-document .callout` / `.callout-content` rules apply.
+ */
+.image-lightbox-callout-host {
+	width: min(44rem, 80vw);
+	max-width: 80vw;
+	margin: 0;
+	padding: 0;
+	line-height: normal;
+	overflow: hidden;
+	border-radius: var(--radius-s, 6px);
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+	background: var(--background-primary, #ffffff);
+	background-color: var(--background-primary, #ffffff);
+	opacity: 1;
+}
+
+.image-lightbox-callout-host > .markdown-preview-sizer {
+	max-width: none !important;
+	width: 100% !important;
+	min-height: 0 !important;
+	height: auto !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	padding-inline: 0 !important;
+}
+
+.image-lightbox-callout.callout {
+	width: 100%;
+	max-width: none;
+	margin: 0 !important;
+	opacity: 1 !important;
+	box-sizing: border-box;
+}
+
+.image-lightbox-callout .callout-title {
+	cursor: default;
+	pointer-events: none;
+}
+
+.image-lightbox-callout .callout-content {
+	display: block !important;
+	height: auto !important;
+	max-height: none !important;
+	overflow: visible !important;
 }
 
 .image-lightbox-toolbar {
@@ -1730,6 +1780,34 @@ body.theme-light .excalidraw-plugin svg.light {
 
 .code-block-wrapper .code-block-copy svg,
 .code-block-wrapper .code-block-expand svg {
+	width: 1em;
+	height: 1em;
+}
+
+.callout-title .callout-expand {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0.15em 0.3em;
+	margin: 0;
+	margin-inline-start: auto;
+	border: none;
+	border-radius: var(--radius-s, 4px);
+	background-color: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	box-shadow: none;
+	flex-shrink: 0;
+	align-self: center;
+	transition: color 0.1s ease-in-out, background-color 0.1s ease-in-out;
+}
+
+.callout-title .callout-expand:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-hover);
+}
+
+.callout-title .callout-expand svg {
 	width: 1em;
 	height: 1em;
 }

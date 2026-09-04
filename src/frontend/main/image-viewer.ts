@@ -1,7 +1,8 @@
 type ViewableSource =
 	| { type: "img"; element: HTMLImageElement }
 	| { type: "svg"; element: SVGSVGElement }
-	| { type: "code"; element: HTMLElement };
+	| { type: "code"; element: HTMLElement }
+	| { type: "callout"; element: HTMLElement };
 
 export class ImageViewer {
 	private static instance: ImageViewer | null = null;
@@ -63,6 +64,12 @@ export class ImageViewer {
 	public static openCode(wrapperEl: HTMLElement): void {
 		if (!ImageViewer.isEnabled()) return;
 		ImageViewer.getInstance().open({ type: "code", element: wrapperEl });
+	}
+
+	/** Open a callout in the same lightbox used for images and code blocks. */
+	public static openCallout(calloutEl: HTMLElement): void {
+		if (!ImageViewer.isEnabled()) return;
+		ImageViewer.getInstance().open({ type: "callout", element: calloutEl });
 	}
 
 	private static getInstance(): ImageViewer {
@@ -250,9 +257,11 @@ export class ImageViewer {
 		this.panY = 0;
 		this.stage.replaceChildren();
 		this.stage.style.transform = "";
-		const isCode = source.type === "code";
-		this.stage.classList.toggle("is-code", isCode);
-		this.overlay.classList.toggle("is-code", isCode);
+		const isPanel = source.type === "code" || source.type === "callout";
+		this.stage.classList.toggle("is-code", isPanel);
+		this.stage.classList.toggle("is-callout", source.type === "callout");
+		this.overlay.classList.toggle("is-code", isPanel);
+		this.overlay.classList.toggle("is-callout", source.type === "callout");
 
 		const toolbar = this.overlay.querySelector(".image-lightbox-toolbar") as HTMLElement | null;
 		if (toolbar) toolbar.style.display = "";
@@ -273,6 +282,10 @@ export class ImageViewer {
 			svgEl.classList.add("image-lightbox-image", "image-lightbox-svg");
 			this.stage.appendChild(svgEl);
 			this.viewEl = svgEl;
+		} else if (source.type === "callout") {
+			const calloutEl = this.buildCalloutLightboxPanel(source.element);
+			this.stage.appendChild(calloutEl);
+			this.viewEl = calloutEl;
 		} else {
 			// Traffic-light chrome + code, no action buttons; still pan/zoom as a whole.
 			const codeEl = this.buildCodeLightboxPanel(source.element);
@@ -357,11 +370,52 @@ export class ImageViewer {
 		return host;
 	}
 
+	/**
+	 * Clone the callout with in-article body styles. Always expanded; no fold
+	 * or expand controls inside the lightbox.
+	 */
+	private buildCalloutLightboxPanel(calloutEl: HTMLElement): HTMLElement {
+		const clone = calloutEl.cloneNode(true) as HTMLElement;
+		clone.classList.add("image-lightbox-callout");
+		clone.classList.remove("is-collapsed");
+		clone.removeAttribute("data-callout-fold");
+		clone.style.margin = "0";
+		clone.style.display = "";
+
+		clone.querySelectorAll(".callout-fold, .callout-expand").forEach((el) => el.remove());
+
+		clone.querySelectorAll(".callout-content").forEach((content) => {
+			const el = content as HTMLElement;
+			el.style.display = "";
+			el.style.height = "";
+			el.style.maxHeight = "";
+			el.style.overflow = "";
+		});
+
+		const host = document.createElement("div");
+		host.className =
+			"image-lightbox-image image-lightbox-callout-host obsidian-document markdown-preview-view";
+
+		const sourceDoc = document.querySelector(".obsidian-document");
+		if (sourceDoc) {
+			for (const cls of Array.from(sourceDoc.classList)) {
+				if (cls === "obsidian-document") continue;
+				host.classList.add(cls);
+			}
+		}
+
+		const sizer = document.createElement("div");
+		sizer.className = "markdown-preview-sizer";
+		sizer.appendChild(clone);
+		host.appendChild(sizer);
+		return host;
+	}
+
 	public close(): void {
 		if (!this.overlay) return;
 
 		this.overlay.classList.add("hide");
-		this.overlay.classList.remove("is-code");
+		this.overlay.classList.remove("is-code", "is-callout");
 		document.body.classList.remove("image-lightbox-open");
 
 		if (this.keydownHandler) {
@@ -376,7 +430,7 @@ export class ImageViewer {
 
 		if (this.stage) {
 			this.stage.style.transform = "";
-			this.stage.classList.remove("is-dragging", "is-code");
+			this.stage.classList.remove("is-dragging", "is-code", "is-callout");
 		}
 
 		this.viewEl = null;

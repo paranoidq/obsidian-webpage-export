@@ -6,7 +6,7 @@ import { restorePageZoomAfterPrint, suspendPageZoomForPrint } from "./fullscreen
  */
 const UI_SVG_SELECTOR = ".svg-icon, .clickable-icon, .collapse-indicator, "
 	+ ".heading-collapse-indicator, .list-collapse-indicator, .callout-icon, "
-	+ ".code-block-header, .sidebar, .image-lightbox, .graph-view-container";
+	+ ".callout-expand, .code-block-header, .sidebar, .image-lightbox, .graph-view-container";
 
 let isPrepared = false;
 const restoreActions: (() => void)[] = [];

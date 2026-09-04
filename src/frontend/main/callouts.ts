@@ -1,5 +1,7 @@
 import { slideDown, slideUp } from "./utils";
-import { WebpageDocument } from "./document";
+import { ImageViewer } from "./image-viewer";
+
+const EXPAND_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></svg>`;
 
 export enum CalloutType
 {
@@ -88,6 +90,32 @@ export class Callout
 				this.toggle();
 			});
 		}
+
+		this.addExpandButton();
+	}
+
+	private addExpandButton()
+	{
+		if (!ImageViewer.isEnabled()) return;
+		if (this.calloutEl.querySelector(":scope > .callout-title > .callout-expand")) return;
+
+		const titleEl = this.calloutEl.querySelector(":scope > .callout-title") as HTMLElement | null;
+		if (!titleEl) return;
+
+		const button = document.createElement("button");
+		button.className = "callout-expand";
+		button.setAttribute("type", "button");
+		button.setAttribute("aria-label", "Expand");
+		button.setAttribute("title", "Expand");
+		button.innerHTML = EXPAND_ICON;
+		titleEl.appendChild(button);
+
+		button.addEventListener("click", (event) =>
+		{
+			event.preventDefault();
+			event.stopPropagation();
+			ImageViewer.openCallout(this.calloutEl);
+		});
 	}
 
 }
