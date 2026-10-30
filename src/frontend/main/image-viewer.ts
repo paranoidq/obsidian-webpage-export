@@ -353,9 +353,12 @@ export class ImageViewer {
 		document.body.classList.add("image-lightbox-open");
 
 		this.keydownHandler = (event: KeyboardEvent) => {
-			if (event.key === "Escape") this.close();
+			if (event.key !== "Escape" && event.code !== "Escape") return;
+			event.preventDefault();
+			event.stopPropagation();
+			this.close();
 		};
-		document.addEventListener("keydown", this.keydownHandler);
+		document.addEventListener("keydown", this.keydownHandler, true);
 
 		const fitWhenReady = (): void => {
 			this.fitToViewport();
@@ -515,7 +518,7 @@ export class ImageViewer {
 		document.body.classList.remove("image-lightbox-open");
 
 		if (this.keydownHandler) {
-			document.removeEventListener("keydown", this.keydownHandler);
+			document.removeEventListener("keydown", this.keydownHandler, true);
 			this.keydownHandler = null;
 		}
 

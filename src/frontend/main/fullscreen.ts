@@ -28,6 +28,43 @@ function isFullscreen(): boolean
 	return !!(document.fullscreenElement || doc.webkitFullscreenElement);
 }
 
+type KeyboardLock = {
+	lock(keyCodes?: string[]): Promise<void>;
+	unlock(): void;
+};
+
+function getKeyboardLock(): KeyboardLock | undefined
+{
+	return (navigator as Navigator & { keyboard?: KeyboardLock }).keyboard;
+}
+
+/** Keep Esc from exiting native fullscreen so it can close a lightbox instead. */
+async function lockEscapeKey(): Promise<void>
+{
+	const keyboard = getKeyboardLock();
+	if (!keyboard?.lock) return;
+	try
+	{
+		await keyboard.lock(["Escape"]);
+	}
+	catch
+	{
+		// Unavailable on some origins / browsers.
+	}
+}
+
+function unlockEscapeKey(): void
+{
+	try
+	{
+		getKeyboardLock()?.unlock?.();
+	}
+	catch
+	{
+		// ignore
+	}
+}
+
 async function enterFullscreen(): Promise<void>
 {
 	const el = document.documentElement as HTMLElement & {
@@ -254,9 +291,18 @@ function onKeyboardZoom(event: KeyboardEvent): void
 	}
 }
 
+function onEscapeInFullscreen(event: KeyboardEvent): void
+{
+	if (event.key !== "Escape" && event.code !== "Escape") return;
+	if (!isFullscreen()) return;
+	// Native fullscreen treats Esc as "exit". Block that so only the
+	// sidebar button leaves fullscreen; lightbox can still close on Esc.
+	event.preventDefault();
+}
+
 /**
  * Left-sidebar fullscreen control with in-fullscreen page zoom.
- * Esc exits via the browser Fullscreen API.
+ * Exit only via the fullscreen button — Esc is reserved for closing lightbox.
  */
 export function initFullscreenControl(): void
 {
@@ -280,9 +326,15 @@ export function initFullscreenControl(): void
 		try
 		{
 			if (isFullscreen())
+			{
+				unlockEscapeKey();
 				await exitFullscreen();
+			}
 			else
+			{
 				await enterFullscreen();
+				await lockEscapeKey();
+			}
 		}
 		catch (error)
 		{
@@ -293,10 +345,15 @@ export function initFullscreenControl(): void
 	const onFullscreenChange = () =>
 	{
 		if (fullscreenButton) syncFullscreenUi(fullscreenButton);
+		if (isFullscreen())
+			void lockEscapeKey();
+		else
+			unlockEscapeKey();
 	};
 
 	document.addEventListener("fullscreenchange", onFullscreenChange);
 	document.addEventListener("webkitfullscreenchange", onFullscreenChange);
 	document.addEventListener("wheel", onWheelZoom, { passive: false });
 	document.addEventListener("keydown", onKeyboardZoom);
+	document.addEventListener("keydown", onEscapeInFullscreen, true);
 }
