@@ -117,7 +117,7 @@ assert.match(deferredCss, /#center-content>\.obsidian-document[\s\S]*min-height:
 assert.match(deferredCss, /#main-horizontal::before/);
 assert.match(deferredCss, /#main-horizontal::before[\s\S]*display:\s*none\s*!important/);
 assert.match(deferredCss, /#center-content>\.obsidian-document[\s\S]*border-radius:\s*0\s*!important/);
-assert.match(deferredCss, /#center-content>\.obsidian-document[\s\S]*background-color:\s*var\(--background-primary\)/);
+assert.match(deferredCss, /#center-content>\.obsidian-document[\s\S]*background-color:\s*var\(--background-primary(?:,\s*#ffffff)?\)/);
 assert.match(deferredCss, /h2\.heading::before/);
 assert.match(deferredCss, /heading-collapse-indicator svg\.svg-icon path/);
 assert.match(deferredCss, /\.obsidian-document blockquote::before/);

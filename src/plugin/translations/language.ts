@@ -85,6 +85,23 @@ export interface i18n
 			title: string;
 			description: string;
 		};
+		longPage: {
+			toc: string;
+			backToToc: string;
+			close: string;
+			outputMode: {
+				title: string;
+				description: string;
+				longPage: string;
+				site: string;
+			};
+			style: {
+				title: string;
+				description: string;
+				mobile: string;
+				desktop: string;
+			};
+		};
 		parseEntryAsDirectory: {
 			title: string;
 			description: string;
@@ -287,6 +304,23 @@ export interface i18n
 		printSelectableText: {
 			title: string;
 			description: string;
+		},
+		longPage: {
+			toc: string;
+			backToToc: string;
+			close: string;
+			outputMode: {
+				title: string;
+				description: string;
+				longPage: string;
+				site: string;
+			};
+			style: {
+				title: string;
+				description: string;
+				mobile: string;
+				desktop: string;
+			};
 		},
 		addPageIcon: {
 			title: string;

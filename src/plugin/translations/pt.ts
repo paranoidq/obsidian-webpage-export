@@ -80,6 +80,23 @@ export const language: i18n =
 			title: "Selectable text in PDF",
 			description: "Print with fonts the browser can embed, so text in the PDF stays selectable, copyable and searchable. Printed pages use a slightly different typeface than the web page.",
 		},
+		longPage: {
+			toc: "Contents",
+			backToToc: "Back to contents",
+			close: "Fechar índice",
+			outputMode: {
+				title: "Output format",
+				description: "Long page keeps all notes in one file with hierarchical navigation. Without scripts, notes remain readable as one continuous page. Interactive site keeps the sidebar and in-page navigation but needs a browser that runs scripts and opens the file from its original location.",
+				longPage: "Long page (recommended for sharing)",
+				site: "Interactive site",
+			},
+			style: {
+				title: "Long page style",
+				description: "Mobile fits a phone screen: full-width text, larger touch targets and a floating contents button. Desktop has a collapsible sidebar and a centered reading column.",
+				mobile: "Mobile",
+				desktop: "Desktop",
+			},
+		},
 		parseEntryAsDirectory: {
 			title: "Analisar arquivo como diretório",
 			description: "Quando desativado, não divide a entrada por estrutura e não gera a árvore de arquivos da barra lateral (somente nesta exportação).",
@@ -282,6 +299,23 @@ export const language: i18n =
 		printSelectableText: {
 			title: "Selectable text in PDF",
 			description: "Print with fonts the browser can embed, so text in the PDF stays selectable, copyable and searchable. Printed pages use a slightly different typeface than the web page.",
+		},
+		longPage: {
+			toc: "Contents",
+			backToToc: "Back to contents",
+			close: "Fechar índice",
+			outputMode: {
+				title: "Output format",
+				description: "Long page keeps all notes in one file with hierarchical navigation. Without scripts, notes remain readable as one continuous page. Interactive site keeps the sidebar and in-page navigation but needs a browser that runs scripts and opens the file from its original location.",
+				longPage: "Long page (recommended for sharing)",
+				site: "Interactive site",
+			},
+			style: {
+				title: "Long page style",
+				description: "Mobile fits a phone screen: full-width text, larger touch targets and a floating contents button. Desktop has a collapsible sidebar and a centered reading column.",
+				mobile: "Mobile",
+				desktop: "Desktop",
+			},
 		},
 		addPageIcon: {
 			title: "Adicionar Ícone à Página",

@@ -125,8 +125,8 @@ export class CascadeContentTree extends FileTree
 					if (exportPath)
 					{
 						const item = this.createTreeItem(parent, displayTitle);
-						item.href = exportPath;
-						item.dataRef = exportPath;
+						item.href = exportPath + this.getLinkFragment(rawContent);
+						item.dataRef = item.href;
 						item.isFolder = false;
 						parent.children.push(item);
 						listStack[indentLevel] = item;
@@ -262,7 +262,7 @@ export class CascadeContentTree extends FileTree
 	{
 		if (content.includes("![[")) return undefined;
 
-		const wikiMatch = content.match(/\[\[([^\]|#]+)(?:\|([^\]]+))?\]\]/);
+		const wikiMatch = content.match(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/);
 		if (wikiMatch)
 		{
 			const resolved = this.resolveLink(wikiMatch[1], sourceFile);
@@ -281,7 +281,7 @@ export class CascadeContentTree extends FileTree
 
 	private getListItemTitle(content: string, linkedFile: TFile | undefined): string
 	{
-		const wikiMatch = content.match(/\[\[([^\]|#]+)(?:\|([^\]]+))?\]\]/);
+		const wikiMatch = content.match(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/);
 		if (wikiMatch)
 			return (wikiMatch[2] ?? wikiMatch[1]).trim();
 
@@ -297,6 +297,15 @@ export class CascadeContentTree extends FileTree
 			.replace(/\[([^\]]*)\]\([^)]+\)/g, "$1")
 			.replace(/[*_~`]/g, "")
 			.trim();
+	}
+
+	private getLinkFragment(content: string): string
+	{
+		const target = content.match(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/)?.[1]
+			?? content.match(/\[[^\]]*\]\(([^)]+)\)/)?.[1]
+			?? "";
+		const hash = target.indexOf("#");
+		return hash < 0 ? "" : target.slice(hash);
 	}
 
 	private resolveLink(link: string | undefined, sourceFile: TFile): TFile | undefined

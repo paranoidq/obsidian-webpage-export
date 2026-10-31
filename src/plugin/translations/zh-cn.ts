@@ -80,6 +80,23 @@ export const language: i18n =
 			title: "PDF 文本可选中",
 			description: "打印时改用浏览器能够嵌入的字体，PDF 里的文字才能正常选中、复制和搜索。打印出的字体会与网页略有不同。",
 		},
+		longPage: {
+			toc: "目录",
+			backToToc: "返回目录",
+			close: "收起目录",
+			outputMode: {
+				title: "导出形式",
+				description: "长页面将所有笔记放进一个文件，通过层级目录切换阅读；脚本不可用时仍可连续滚动阅读。交互站点保留侧边栏与页内导航，但需要能运行脚本、且从原始位置打开文件的浏览器。",
+				longPage: "长页面（推荐用于分享）",
+				site: "交互站点",
+			},
+			style: {
+				title: "长页面样式",
+				description: "手机样式适配手机屏幕：正文通栏、点击区域更大，并带悬浮目录按钮。PC 样式提供可折叠侧栏和居中的阅读栏。",
+				mobile: "手机样式",
+				desktop: "PC 样式",
+			},
+		},
 		parseEntryAsDirectory: {
 			title: "将文件作为目录解析",
 			description: "关闭后不按入口结构拆分，也不生成侧边栏目录树（仅本次导出）。",
@@ -282,6 +299,23 @@ export const language: i18n =
 		printSelectableText: {
 			title: "PDF 文本可选中",
 			description: "打印时改用浏览器能够嵌入的字体，PDF 里的文字才能正常选中、复制和搜索。打印出的字体会与网页略有不同。",
+		},
+		longPage: {
+			toc: "目录",
+			backToToc: "返回目录",
+			close: "收起目录",
+			outputMode: {
+				title: "导出形式",
+				description: "长页面将所有笔记放进一个文件，通过层级目录切换阅读；脚本不可用时仍可连续滚动阅读。交互站点保留侧边栏与页内导航，但需要能运行脚本、且从原始位置打开文件的浏览器。",
+				longPage: "长页面（推荐用于分享）",
+				site: "交互站点",
+			},
+			style: {
+				title: "长页面样式",
+				description: "手机样式适配手机屏幕：正文通栏、点击区域更大，并带悬浮目录按钮。PC 样式提供可折叠侧栏和居中的阅读栏。",
+				mobile: "手机样式",
+				desktop: "PC 样式",
+			},
 		},
 		addPageIcon: {
 			title: "添加页面图标",

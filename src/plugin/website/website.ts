@@ -1,5 +1,5 @@
 import { Attachment } from "src/plugin/utils/downloadable";
-import { FileTree } from "src/plugin/features/file-tree";
+import { FileTree, FileTreeItem } from "src/plugin/features/file-tree";
 import { CascadeContentTree } from "src/plugin/features/cascade-content-tree";
 import {  TAbstractFile, TFile, TFolder } from "obsidian";
 import {  Settings } from "src/plugin/settings/settings";
@@ -19,6 +19,9 @@ import { Utils } from "src/plugin/utils/utils";
 import { CascadeExportContext } from "src/plugin/cascade-export-resolver";
 import { DEFAULT_MAX_COMBINED_HTML_BYTES, enforceHtmlSizeBudget } from "src/plugin/utils/html-size-budget";
 import { encodeMetadataPayload } from "src/plugin/utils/metadata-codec";
+import { buildLongPage, LongPageNavigationNode } from "./long-page";
+import { ExportOutputMode } from "./pipeline-options";
+import { i18n } from "src/plugin/translations/language";
 
 const cascadeResourceFolderName = "attachments";
 const INLINE_MEDIA_REGISTRY_ID = "inline-media-registry";
@@ -797,9 +800,92 @@ window.__MEDIA_HYDRATE_PROMISE=window.__hydrateInlineMedia(document);
 		);
 	}
 
+	/** Pages in the order they should be read: BFS order of the cascade, else file tree order. */
+	private getPagesInReadingOrder(): Webpage[]
+	{
+		const pages = this.index.webpages.filter((page) => page.data && page.data.toString().length > 0);
+
+		if (this.cascadeContext)
+		{
+			const order = new Map(this.cascadeContext.pageFiles.map((file, i) => [file.path, i] as [string, number]));
+			return [...pages].sort((a, b) =>
+				(order.get(a.source.path) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.source.path) ?? Number.MAX_SAFE_INTEGER));
+		}
+
+		return [...pages].sort((a, b) => ((a.treeOrder ?? 0) - (b.treeOrder ?? 0)) || a.title.localeCompare(b.title));
+	}
+
+	private async getLongPageNavigation(pages: Webpage[]): Promise<LongPageNavigationNode[]>
+	{
+		if (this.cascadeContext && !this.cascadeContext.parseEntryAsDirectory) return [];
+		// Populate independently of the interactive sidebar's enabled state. Its
+		// rendered links may have been slugified, including their heading fragments.
+		const tree = this.cascadeContext
+			? new CascadeContentTree(this, this.cascadeContext, this.index.getWebpage(this.cascadeContext.entrySourcePath))
+			: new FileTree(pages.map((page) => new Path(page.sourcePathRootRelative ?? page.source.path)), false, true);
+		const pagesBySource = new Map(pages.map((page) => [page.sourcePathRootRelative, page]));
+		const convert = async (item: FileTreeItem): Promise<LongPageNavigationNode> =>
+		{
+			const title = document.createElement("span");
+			await MarkdownRendererAPI.renderMarkdownSimpleEl(item.title, title);
+			const icon = document.createElement("span");
+			if (item.icon) await MarkdownRendererAPI.renderMarkdownSimpleEl(item.icon, icon);
+			const page = !this.cascadeContext ? pagesBySource.get(item.dataRef) : undefined;
+			return {
+				title: item.title,
+				titleHtml: title.innerHTML,
+				iconHtml: icon.innerHTML,
+				href: this.cascadeContext ? item.href : page?.targetPath.path,
+				children: await Promise.all(item.children.map(convert)),
+			};
+		};
+		return Promise.all((await tree.getTreeItems()).map(convert));
+	}
+
+	/** One self-contained HTML file with hash navigation and continuous-reading fallback. */
+	public async getLongPageHTML(): Promise<string>
+	{
+		const pages = this.getPagesInReadingOrder();
+		if (pages.length == 0)
+		{
+			ExportLog.error("No pages were rendered, long page export failed");
+			return "";
+		}
+
+		const lang = i18n.exportModal.longPage;
+		const entry = pages[0];
+		const result = buildLongPage({
+			pages: pages.map((page) => ({
+				targetPath: page.targetPath.path,
+				title: page.title || page.source.basename,
+				html: page.data.toString(),
+			})),
+			navigation: await this.getLongPageNavigation(pages),
+			mediaRegistry: this.getInlineMediaRegistry(),
+			// Long pages must carry their styles even if a saved site export used links.
+			headHtml: AssetHandler.getHeadReferences(Object.assign(new ExportPipelineOptions(), this.exportOptions, { includeCSS: true, inlineCSS: true })),
+			// getValidBodyClasses intentionally omits theme-* because the interactive
+			// site adds it at runtime. A shared long page has no theme loader.
+			bodyClasses: `${this.index.websiteData.bodyClasses ?? ""} ${document.body.classList.contains("theme-dark") ? "theme-dark" : "theme-light"}`,
+			attachmentPaths: this.index.allFiles
+				.filter((file) => !(file instanceof Webpage))
+				.map((file) => file.targetPath.path),
+			style: this.exportOptions.longPageStyle,
+			title: entry.title || this.exportOptions.siteName,
+			tocTitle: lang.toc,
+			backToTocLabel: lang.backToToc,
+			closeNavigationLabel: lang.close,
+		});
+
+		for (const warning of result.warnings) ExportLog.warning(warning);
+		return result.html;
+	}
+
 	public async saveAsCombinedHTML(): Promise<Path>
 	{
-		const html = await this.getCombinedHTML();
+		const html = this.exportOptions.outputMode == ExportOutputMode.Site
+			? await this.getCombinedHTML()
+			: await this.getLongPageHTML();
 		const maxBytes = this.exportOptions.maxCombinedHtmlBytes ?? DEFAULT_MAX_COMBINED_HTML_BYTES;
 		const budgeted = await enforceHtmlSizeBudget(html, maxBytes);
 		let outputName: string;

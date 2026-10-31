@@ -181,6 +181,13 @@ export class FileTree extends Tree
 		await super.generateTree(container);
 	}
 
+	/** Populate the shared navigation model without rendering the interactive shell. */
+	public async getTreeItems(): Promise<FileTreeItem[]>
+	{
+		await this.populateTree();
+		return this.children;
+	}
+
 	public sortByIsFolder(reverse: boolean = false)
 	{
 		this.children.sort((a, b) => {
