@@ -1,7 +1,9 @@
+import { getLongPageSearchScript } from "./long-page-search";
+
 /** Self-contained ES5: shared files need no network, history API or decoding APIs. */
 export function getLongPageScript(): string
 {
-	return `(function () {
+	return String.raw`(function () {
   var root = document.documentElement;
   var pages = document.querySelectorAll('.lp-page');
   var nav = document.getElementById('lp-toc');
@@ -11,10 +13,11 @@ export function getLongPageScript(): string
   var active = pages[0];
   if (!active) return;
   function mobile() {
-    return document.body.classList.contains('lp-mobile') || window.matchMedia('(max-width: 700px)').matches;
+    return window.matchMedia('(max-width: 760px)').matches;
   }
   function menu(open, restoreFocus) {
     if (!nav || !toggle) return;
+    if (open && search) search.close(false);
     document.body.classList.toggle('lp-nav-open', open);
     document.body.classList.toggle('lp-nav-closed', !open);
     toggle.setAttribute('aria-expanded', String(open));
@@ -30,11 +33,13 @@ export function getLongPageScript(): string
     while (target && !target.classList.contains('lp-page')) target = target.parentElement;
     return target;
   }
+  ${getLongPageSearchScript()}
   function navigate(scroll) {
     var target = targetForHash(window.location.hash);
     if (nav && target === nav) { menu(true, false); target = null; scroll = false; }
     var page = pageFor(target) || active;
     if (!page) return;
+    var changed = active !== page;
     active = page;
     for (var i = 0; i < pages.length; i++) pages[i].classList.toggle('lp-active', pages[i] === page);
     if (nav) {
@@ -60,6 +65,7 @@ export function getLongPageScript(): string
         }
       }
     }
+    if (changed) search.refresh(false);
     if (scroll) {
       if (mobile()) menu(false, false);
       var destination = pageFor(target) === page ? target : page;
@@ -78,7 +84,11 @@ export function getLongPageScript(): string
     backdrop.addEventListener('click', function () { menu(false, true); });
   }
   document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape') menu(false, true);
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.key === 'Escape') {
+      if (search.isOpen()) search.close(true);
+      else menu(false, true);
+    }
     if (event.key === 'Tab' && mobile() && document.body.classList.contains('lp-nav-open')) {
       var controls = Array.prototype.filter.call(nav.querySelectorAll('button, a[href], summary'), function (el) { return el.getClientRects().length > 0; });
       var first = controls[0], last = controls[controls.length - 1];
@@ -99,6 +109,14 @@ export function getLongPageScript(): string
     event.preventDefault();
     if (window.location.hash === hash) navigate(true);
     else window.location.hash = hash;
+  });
+  var wasMobile = mobile();
+  window.addEventListener('resize', function () {
+    if (mobile() === wasMobile) return;
+    wasMobile = mobile();
+    document.body.classList.remove('lp-nav-open');
+    document.body.classList.remove('lp-nav-closed');
+    if (toggle) toggle.setAttribute('aria-expanded', String(!wasMobile));
   });
   window.addEventListener('hashchange', function () { navigate(true); });
   navigate(false);

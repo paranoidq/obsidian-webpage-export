@@ -89,17 +89,20 @@ export interface i18n
 			toc: string;
 			backToToc: string;
 			close: string;
+			search: {
+				title: string;
+				placeholder: string;
+				previous: string;
+				next: string;
+				close: string;
+				noResults: string;
+				hint: string;
+			};
 			outputMode: {
 				title: string;
 				description: string;
 				longPage: string;
 				site: string;
-			};
-			style: {
-				title: string;
-				description: string;
-				mobile: string;
-				desktop: string;
 			};
 		};
 		parseEntryAsDirectory: {
@@ -309,17 +312,20 @@ export interface i18n
 			toc: string;
 			backToToc: string;
 			close: string;
+			search: {
+				title: string;
+				placeholder: string;
+				previous: string;
+				next: string;
+				close: string;
+				noResults: string;
+				hint: string;
+			};
 			outputMode: {
 				title: string;
 				description: string;
 				longPage: string;
 				site: string;
-			};
-			style: {
-				title: string;
-				description: string;
-				mobile: string;
-				desktop: string;
 			};
 		},
 		addPageIcon: {

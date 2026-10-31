@@ -197,7 +197,7 @@ try {
       assert.equal(await page.locator('#lp-toc strong').textContent(), 'B alias');
       assert.equal(await page.locator('.lp-nav-icon svg').count(), 1);
       const showNavigation = async () => { if (!await page.locator('#lp-toc').isVisible()) await page.locator('#lp-menu').click(); };
-      const drawer = style === 'mobile' || width === 390;
+      const drawer = width <= 760;
       assert.equal(await page.locator('#lp-toc').isVisible(), !drawer);
       // Collapse the group, then follow a link into it; routing must reopen ancestors.
       if (drawer) await showNavigation();

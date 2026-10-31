@@ -4,7 +4,7 @@ import pluginStylesBlacklist from 'src/assets/third-party-styles-blacklist.txt';
 import { ExportLog } from 'src/plugin/render-api/render-api';
 import { createDivider, createDropdown, createFeatureSetting, createFileInput, createSection, createText, createToggle, generateSettingsFromObject }  from './settings-components';
 import { ImageCompressionLevel } from "src/plugin/utils/image-compressor";
-import { DocumentFontSize, ExportOutputMode, ExportPipelineOptions, LongPageStyle } from "src/plugin/website/pipeline-options.js";
+import { DocumentFontSize, ExportOutputMode, ExportPipelineOptions } from "src/plugin/website/pipeline-options.js";
 import { FlowList } from 'src/plugin/features/flow-list';
 import { i18n } from '../translations/language';
 import { error } from 'console';
@@ -329,18 +329,6 @@ export class SettingsPage extends PluginSettingTab
 				[lang.longPage.outputMode.site]: ExportOutputMode.Site,
 			},
 			lang.longPage.outputMode.description,
-		);
-
-		createDropdown(
-			section,
-			lang.longPage.style.title,
-			() => Settings.exportOptions.longPageStyle,
-			(value) => Settings.exportOptions.longPageStyle = value as LongPageStyle,
-			{
-				[lang.longPage.style.mobile]: LongPageStyle.Mobile,
-				[lang.longPage.style.desktop]: LongPageStyle.Desktop,
-			},
-			lang.longPage.style.description,
 		);
 
 		createDropdown(

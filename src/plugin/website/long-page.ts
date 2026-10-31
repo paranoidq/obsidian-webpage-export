@@ -1,4 +1,3 @@
-import { LongPageStyle } from "./export-output-options";
 import { escapeCssForHtmlStyleTag } from "../utils/css-html-safe";
 import { remapLongPageCss } from "./long-page-styles";
 import { getLongPageScript } from "./long-page-runtime";
@@ -37,11 +36,11 @@ export interface LongPageInput
 	headHtml: string;
 	/** Export paths of non-page files (attachments) that links may legitimately point to. */
 	attachmentPaths: Iterable<string>;
-	style: LongPageStyle;
 	title: string;
 	tocTitle: string;
 	backToTocLabel: string;
 	closeNavigationLabel: string;
+	searchLabels?: { title: string; placeholder: string; previous: string; next: string; close: string; noResults: string; hint: string };
 }
 
 export interface LongPageResult
@@ -252,7 +251,7 @@ export function buildLongPage(input: LongPageInput): LongPageResult
 	);
 	const style = doc.createElement("style");
 	style.id = "long-page-style";
-	style.textContent = getLongPageCss(input.style);
+	style.textContent = getLongPageCss();
 	doc.head.appendChild(style);
 
 	const bodyClasses = new Set(`${bodyClass} ${input.bodyClasses ?? ""}`.split(/\s+/).filter(Boolean));
@@ -262,7 +261,9 @@ export function buildLongPage(input: LongPageInput): LongPageResult
 	else if (snapshotClasses.has("theme-light")) bodyClasses.delete("theme-dark");
 	if (!bodyClasses.has("theme-light") && !bodyClasses.has("theme-dark")) bodyClasses.add("theme-light");
 	bodyClasses.add("lp-body");
-	bodyClasses.add(input.style === LongPageStyle.Mobile ? "lp-mobile" : "lp-desktop");
+	bodyClasses.delete("lp-mobile");
+	bodyClasses.delete("lp-desktop");
+	bodyClasses.add("lp-responsive");
 	doc.body.className = Array.from(bodyClasses).join(" ");
 
 	const root = doc.createElement("div");
@@ -370,11 +371,10 @@ export function buildLongPage(input: LongPageInput): LongPageResult
 		const toggle = doc.createElement("a");
 		toggle.id = "lp-menu";
 		toggle.href = "#lp-toc";
-		toggle.className = "lp-fab";
+		toggle.className = "lp-fab lp-floating-button";
 		toggle.innerHTML = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 5h12M4 10h12M4 15h12"/></svg>';
-		const toggleLabel = doc.createElement("span");
-		toggleLabel.textContent = input.tocTitle;
-		toggle.appendChild(toggleLabel);
+		toggle.setAttribute("aria-label", input.tocTitle);
+		toggle.setAttribute("title", input.tocTitle);
 		toggle.setAttribute("aria-controls", "lp-toc");
 		doc.body.appendChild(toggle);
 		const backdrop = doc.createElement("button");
@@ -406,6 +406,60 @@ export function buildLongPage(input: LongPageInput): LongPageResult
 		}
 		main.appendChild(section);
 	}
+	const searchLabels = input.searchLabels ?? {
+		title: "Search this article", placeholder: "Find in this article", previous: "Previous match",
+		next: "Next match", close: "Close search", noResults: "No matches", hint: "Current article only",
+	};
+	const icon = (path: string): string => `<svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg>`;
+	const searchButton = doc.createElement("button");
+	searchButton.id = "lp-search-toggle";
+	searchButton.className = "lp-floating-button lp-script-control";
+	searchButton.type = "button";
+	searchButton.innerHTML = icon("m14 14 3 3M15 9a6 6 0 1 1-12 0 6 6 0 0 1 12 0");
+	searchButton.setAttribute("aria-label", searchLabels.title);
+	searchButton.setAttribute("title", searchLabels.title);
+	searchButton.setAttribute("aria-controls", "lp-search-panel");
+	searchButton.setAttribute("aria-expanded", "false");
+	const searchPanel = doc.createElement("div");
+	searchPanel.id = "lp-search-panel";
+	searchPanel.className = "lp-script-control";
+	searchPanel.hidden = true;
+	searchPanel.setAttribute("role", "search");
+	searchPanel.setAttribute("aria-label", searchLabels.title);
+	const inputRow = doc.createElement("div");
+	inputRow.className = "lp-search-input-row";
+	const searchInput = doc.createElement("input");
+	searchInput.id = "lp-search-input";
+	searchInput.type = "search";
+	searchInput.placeholder = searchLabels.placeholder;
+	searchInput.setAttribute("aria-label", searchLabels.placeholder);
+	searchInput.setAttribute("autocomplete", "off");
+	searchInput.setAttribute("enterkeyhint", "search");
+	const resultRow = doc.createElement("div");
+	resultRow.className = "lp-search-result-row";
+	const status = doc.createElement("output");
+	status.id = "lp-search-status";
+	status.setAttribute("aria-live", "polite");
+	status.setAttribute("data-empty", searchLabels.noResults);
+	status.setAttribute("data-hint", searchLabels.hint);
+	resultRow.appendChild(status);
+	for (const [id, label, path] of [
+		["lp-search-close", searchLabels.close, "m5 5 10 10M15 5 5 15"],
+		["lp-search-previous", searchLabels.previous, "m5 12 5-5 5 5"],
+		["lp-search-next", searchLabels.next, "m5 8 5 5 5-5"],
+	])
+	{
+		const button = doc.createElement("button");
+		button.id = id;
+		button.type = "button";
+		button.setAttribute("aria-label", label);
+		button.setAttribute("title", label);
+		button.innerHTML = icon(path);
+		if (id === "lp-search-close") inputRow.append(searchInput, button);
+		else resultRow.appendChild(button);
+	}
+	searchPanel.append(inputRow, resultRow);
+	doc.body.append(searchButton, searchPanel);
 	const script = doc.createElement("script");
 	script.textContent = getLongPageScript();
 	doc.body.appendChild(script);
@@ -421,7 +475,7 @@ export function buildLongPage(input: LongPageInput): LongPageResult
  * Deliberately avoids :is(), :has(), nesting and other recent selectors so that
  * older in-app web views still apply every rule.
  */
-export function getLongPageCss(style: LongPageStyle): string
+export function getLongPageCss(): string
 {
 	const common = `
 /* ---- undo the app-shell layout ---- */
@@ -471,21 +525,17 @@ body.lp-body .lp-back { display: block; box-sizing: border-box; max-width: var(-
 }
 `;
 
-	const desktop = `
-/* ---- desktop presentation ---- */
-body.lp-desktop { --lp-width: var(--file-line-width, 46rem); }
-body.lp-desktop #lp-root { padding: 40px 24px 96px; }
+	const responsive = `
+body.lp-body { --lp-width: var(--file-line-width, 46rem); }
+body.lp-body #lp-root { padding: 40px 24px 96px; }
+@media screen and (max-width: 760px) {
+ html:root body.lp-body { --lp-width: 100%; --file-line-width: 100%; --line-width: 100%; --line-width-adaptive: 100%; --line-height-normal: 1.7; --font-text-size: calc(16px * var(--export-font-scale, 1)) !important; --font-text: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important; --h1-size: 1.7em; --h2-size: 1.45em; --h3-size: 1.25em; --h4-size: 1.1em; font-family: var(--font-text); font-size: var(--font-text-size); }
+ body.lp-body #lp-root { padding: 18px 16px 100px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+ body.lp-body .lp-page pre, body.lp-body .lp-page pre code { white-space: pre-wrap !important; overflow-wrap: anywhere; word-break: break-word; }
+ body.lp-body .lp-page + .lp-page { margin-top: 2em; padding-top: 1.5em; }
+}
 `;
-
-	const mobile = `
-/* ---- mobile presentation ---- */
-html:root body.lp-mobile { --lp-width: 100%; --file-line-width: 100%; --line-width: 100%; --line-width-adaptive: 100%; --line-height-normal: 1.75; --h1-size: 1.7em; --h2-size: 1.45em; --h3-size: 1.25em; --h4-size: 1.1em; }
-body.lp-mobile #lp-root { padding: 14px 14px 72px; padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
-body.lp-mobile .lp-page pre, body.lp-mobile .lp-page pre code { white-space: pre-wrap !important; overflow-wrap: anywhere; word-break: break-word; }
-body.lp-mobile .lp-page + .lp-page { margin-top: 2em; padding-top: 1.5em; }
-`;
-
-	return common + (style === LongPageStyle.Mobile ? mobile : desktop) + getNavigationCss();
+	return common + responsive + getNavigationCss();
 }
 
 /** Defaults stay readable until the router has initialized successfully. */
@@ -521,9 +571,22 @@ body.lp-body #lp-toc .lp-nav-row.lp-current .lp-nav-icon, body.lp-body #lp-toc .
 body.lp-body #lp-toc .lp-nav-row:focus, body.lp-body #lp-toc a.lp-nav-link:focus { outline: 2px solid var(--lp-nav-accent); outline-offset: -2px; }
 body.lp-body #lp-toc #lp-close { align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; min-width: 32px; min-height: 32px; margin: 0; padding: 6px; border: 0; border-radius: 8px; background: transparent; color: var(--text-muted, #737987); box-shadow: none; cursor: pointer; }
 body.lp-body #lp-toc #lp-close svg { display: block; width: 20px; height: 20px; }
-body.lp-body #lp-menu { display: inline-flex; align-items: center; justify-content: center; gap: 8px; position: fixed; left: 18px; bottom: 18px; z-index: 99; box-sizing: border-box; width: max-content; max-width: calc(100% - 36px); min-height: 44px; padding: 10px 16px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; background: var(--interactive-accent, #7562ce); color: var(--text-on-accent, #fff); font-size: 14px; font-weight: 600; line-height: 22px; text-decoration: none; box-shadow: 0 4px 16px rgba(0,0,0,.16); }
-body.lp-body #lp-menu svg { display: block; flex: 0 0 18px; width: 18px; height: 18px; }
-body.lp-mobile #lp-menu { left: auto; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); }
+body.lp-body .lp-floating-button { align-items: center; justify-content: center; position: fixed; bottom: 18px; z-index: 99; box-sizing: border-box; width: 48px; height: 48px; min-width: 48px; min-height: 48px; margin: 0; padding: 13px; border: 1px solid rgba(255,255,255,.12); border-radius: 50%; background: var(--interactive-accent, #7562ce); color: var(--text-on-accent, #fff); text-decoration: none; box-shadow: 0 4px 16px rgba(0,0,0,.16); cursor: pointer; }
+body.lp-body #lp-menu { display: inline-flex; left: 18px; }
+body.lp-body .lp-floating-button svg { display: block; width: 20px; height: 20px; }
+html.lp-js body.lp-body #lp-search-toggle { display: inline-flex; right: 18px; }
+html.lp-js body.lp-body.lp-has-toc #lp-search-toggle { bottom: 78px; }
+body.lp-body #lp-search-panel[hidden] { display: none !important; }
+body.lp-body #lp-search-panel { position: fixed; top: 16px; right: 16px; z-index: 102; box-sizing: border-box; width: 360px; max-width: calc(100vw - 24px); padding: 10px; border: 1px solid var(--background-modifier-border, #dedee5); border-radius: 12px; background: var(--background-primary, #fff); color: var(--text-normal, #343641); box-shadow: 0 8px 32px rgba(0,0,0,.18); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+body.lp-body .lp-search-input-row, body.lp-body .lp-search-result-row { display: flex; align-items: center; gap: 8px; }
+body.lp-body .lp-search-result-row { margin-top: 6px; }
+body.lp-body #lp-search-input { flex: 1 1 0; box-sizing: border-box; min-width: 0; width: 100%; height: 40px; margin: 0; padding: 8px 10px; border: 1px solid var(--background-modifier-border, #dedee5); border-radius: 8px; background: var(--background-secondary, #f6f7f9); color: inherit; font: inherit; font-size: 16px; }
+body.lp-body #lp-search-status { flex: 1 1 0; min-width: 0; padding-left: 4px; color: var(--text-muted, #737987); font-size: 13px; }
+body.lp-body #lp-search-panel button { display: flex; align-items: center; justify-content: center; flex: 0 0 36px; box-sizing: border-box; width: 36px; height: 36px; margin: 0; padding: 8px; border: 0; border-radius: 8px; box-shadow: none; background: var(--background-secondary, #f6f7f9); color: inherit; cursor: pointer; }
+body.lp-body #lp-search-panel button:disabled { opacity: .4; cursor: default; }
+body.lp-body #lp-search-panel svg { width: 20px; height: 20px; }
+body.lp-body .lp-page mark.lp-search-match { margin: 0; padding: 0; border: 0; border-radius: 2px; background: #ffe58a !important; color: #302900 !important; font: inherit; scroll-margin-top: 140px; }
+body.lp-body .lp-page mark.lp-search-current { background: #ffb85c !important; box-shadow: 0 0 0 2px #e7942e; }
 @media (hover: hover) {
  body.lp-body #lp-toc .lp-nav-row:hover { background: var(--background-modifier-hover, rgba(128,128,128,.07)); }
  body.lp-body #lp-toc .lp-nav-row.lp-current:hover { background: var(--lp-nav-active-bg); }
@@ -539,24 +602,24 @@ html.lp-js body.lp-body #lp-toc { position: fixed; top: 0; bottom: 0; left: 0; w
 html.lp-js body.lp-body #lp-toc .lp-toc-title { position: sticky; top: 0; z-index: 2; background: var(--background-secondary, #f8f9fb); }
 html.lp-js body.lp-body #lp-toc #lp-close { display: flex; }
 html.lp-js body.lp-body #lp-backdrop { display: none; }
-html.lp-js body.lp-desktop.lp-has-toc #lp-content { margin-left: 304px; }
-html.lp-js body.lp-desktop.lp-nav-closed #lp-toc { display: none; }
-html.lp-js body.lp-desktop.lp-nav-closed #lp-content { margin-left: 0; }
-html.lp-js body.lp-mobile #lp-toc { display: none; width: 344px; border-radius: 0 16px 16px 0; box-shadow: 12px 0 40px rgba(0,0,0,.12); font-size: 15px; }
-body.lp-mobile #lp-toc .lp-nav-row, body.lp-mobile #lp-toc .lp-nav-link { min-height: 44px; }
-body.lp-mobile #lp-toc .lp-nav-link { padding-top: 11px; padding-bottom: 11px; }
-body.lp-mobile #lp-toc #lp-close { flex-basis: 40px; width: 40px; height: 40px; min-height: 40px; }
-html.lp-js body.lp-mobile.lp-nav-open #lp-toc { display: block; }
-html.lp-js body.lp-mobile.lp-nav-open #lp-menu { visibility: hidden; }
-html.lp-js body.lp-mobile.lp-nav-open #lp-backdrop { display: block; position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; background: rgba(0,0,0,.28); z-index: 100; }
-html.lp-js body.lp-mobile.lp-nav-open { overflow: hidden !important; }
-@media screen and (max-width: 700px) {
- html.lp-js body.lp-desktop.lp-has-toc #lp-content { margin-left: 0; }
- html.lp-js body.lp-desktop #lp-toc { display: none; width: 344px; border-radius: 0 16px 16px 0; box-shadow: 12px 0 40px rgba(0,0,0,.12); }
- html.lp-js body.lp-desktop.lp-nav-open #lp-toc { display: block; }
- html.lp-js body.lp-desktop.lp-nav-open #lp-menu { visibility: hidden; }
- html.lp-js body.lp-desktop.lp-nav-open #lp-backdrop { display: block; position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; background: rgba(0,0,0,.28); z-index: 100; }
- html.lp-js body.lp-desktop.lp-nav-open { overflow: hidden !important; }
+html.lp-js body.lp-responsive.lp-has-toc #lp-content { margin-left: 304px; }
+html.lp-js body.lp-responsive.lp-nav-closed #lp-toc { display: none; }
+html.lp-js body.lp-responsive.lp-nav-closed #lp-content { margin-left: 0; }
+@media screen and (max-width: 760px) {
+ html.lp-js body.lp-responsive.lp-has-toc #lp-content { margin-left: 0; }
+ html.lp-js body.lp-responsive #lp-toc { display: none; width: 344px; border-radius: 0 16px 16px 0; box-shadow: 12px 0 40px rgba(0,0,0,.12); }
+ html.lp-js body.lp-responsive.lp-nav-open #lp-toc { display: block; }
+ body.lp-body #lp-toc .lp-nav-row, body.lp-body #lp-toc .lp-nav-link { min-height: 44px; }
+ body.lp-body #lp-toc .lp-nav-link { padding-top: 11px; padding-bottom: 11px; }
+ body.lp-body #lp-toc { font-size: 15px; }
+ body.lp-body #lp-toc #lp-close { flex-basis: 40px; width: 40px; height: 40px; min-height: 40px; }
+ body.lp-body #lp-menu { left: auto; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); }
+ html.lp-js body.lp-body.lp-has-toc #lp-search-toggle { bottom: calc(78px + env(safe-area-inset-bottom)); }
+ body.lp-body #lp-search-panel { top: calc(12px + env(safe-area-inset-top)); left: 12px; right: 12px; width: auto; }
+ body.lp-body #lp-search-panel button { flex-basis: 40px; width: 40px; height: 40px; }
+ html.lp-js body.lp-responsive.lp-nav-open .lp-floating-button { visibility: hidden; }
+ html.lp-js body.lp-responsive.lp-nav-open #lp-backdrop { display: block; position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; background: rgba(0,0,0,.28); z-index: 100; }
+ html.lp-js body.lp-responsive.lp-nav-open { overflow: hidden !important; }
 }
 @media print {
  body.lp-body #lp-root { display: block !important; }

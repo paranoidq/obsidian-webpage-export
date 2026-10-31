@@ -91,7 +91,14 @@ try {
           assert.equal(await exported.locator('body').evaluate(el => el.classList.contains('theme-dark')), mode === 'dark');
           assert.equal(await exported.locator('body').evaluate(el => el.classList.contains('theme-light')), mode === 'light');
           const before = await snapshot(reference), after = await snapshot(exported);
-          for (const selector of selectors) assert.deepEqual(after[selector], before[selector], `${mode} ${style} ${width}px JS=${javaScriptEnabled}: ${selector} matches original reading view`);
+          for (const selector of selectors) {
+            // Narrow screens intentionally use a 16px system-font baseline;
+            // theme colors, borders, spacing and syntax styles must still match.
+            if (width <= 760) for (const property of ['font-size', 'font-family']) {
+              delete after[selector][property]; delete before[selector][property];
+            }
+            assert.deepEqual(after[selector], before[selector], `${mode} ${style} ${width}px JS=${javaScriptEnabled}: ${selector} matches original reading view`);
+          }
           assert.notEqual(after['p > code']['background-color'], 'rgba(0, 0, 0, 0)', 'inline code has its theme background');
           assert.notEqual(after.pre['background-color'], 'rgba(0, 0, 0, 0)', 'code block has its theme background');
           if (process.env.LONG_PAGE_ARTIFACT_DIR && width === 1280 && javaScriptEnabled && style === 'desktop') {

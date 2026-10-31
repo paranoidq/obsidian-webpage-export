@@ -16,8 +16,8 @@ import { RssOptions } from "src/shared/features/rss";
 import { LinkPreviewOptions } from "src/shared/features/link-preview";
 import { ImageCompressionLevel } from "src/plugin/utils/image-compressor";
 
-import { ExportOutputMode, LongPageStyle } from "./export-output-options";
-export { ExportOutputMode, LongPageStyle } from "./export-output-options";
+import { ExportOutputMode } from "./export-output-options";
+export { ExportOutputMode } from "./export-output-options";
 
 export enum DocumentFontSize
 {
@@ -183,11 +183,6 @@ export class ExportPipelineOptions extends MarkdownRendererOptions
 	 * Long page (default) or the interactive site.
 	 */
 	outputMode: ExportOutputMode = ExportOutputMode.LongPage;
-
-	/**
-	 * Mobile or desktop presentation. Only used by the long page output.
-	 */
-	longPageStyle: LongPageStyle = LongPageStyle.Mobile;
 
 	/**
 	 * Warning threshold for the combined single-file HTML size in bytes.

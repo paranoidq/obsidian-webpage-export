@@ -870,11 +870,11 @@ window.__MEDIA_HYDRATE_PROMISE=window.__hydrateInlineMedia(document);
 			attachmentPaths: this.index.allFiles
 				.filter((file) => !(file instanceof Webpage))
 				.map((file) => file.targetPath.path),
-			style: this.exportOptions.longPageStyle,
 			title: entry.title || this.exportOptions.siteName,
 			tocTitle: lang.toc,
 			backToTocLabel: lang.backToToc,
 			closeNavigationLabel: lang.close,
+			searchLabels: lang.search,
 		});
 
 		for (const warning of result.warnings) ExportLog.warning(warning);

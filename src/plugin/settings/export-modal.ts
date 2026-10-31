@@ -10,7 +10,7 @@ import { Website } from 'src/plugin/website/website';
 import { Index } from 'src/plugin/website';
 import { i18n } from '../translations/language';
 import { ImageCompressionLevel } from 'src/plugin/utils/image-compressor';
-import { DocumentFontSize, ExportOutputMode, LongPageStyle } from 'src/plugin/website/pipeline-options';
+import { DocumentFontSize, ExportOutputMode } from 'src/plugin/website/pipeline-options';
 
 export interface ExportInfo
 {
@@ -207,39 +207,17 @@ export class ExportModal extends Modal
 		}
 
 		const longPageLabels = lang.longPage;
-		const outputModeSetting = createDropdown(
+		createDropdown(
 			contentEl,
 			longPageLabels.outputMode.title,
 			() => Settings.exportOptions.outputMode,
-			(value) =>
-			{
-				Settings.exportOptions.outputMode = value as ExportOutputMode;
-				updateStyleVisibility();
-			},
+			(value) => Settings.exportOptions.outputMode = value as ExportOutputMode,
 			{
 				[longPageLabels.outputMode.longPage]: ExportOutputMode.LongPage,
 				[longPageLabels.outputMode.site]: ExportOutputMode.Site,
 			},
 			longPageLabels.outputMode.description,
 		);
-		const styleSetting = createDropdown(
-			contentEl,
-			longPageLabels.style.title,
-			() => Settings.exportOptions.longPageStyle,
-			(value) => Settings.exportOptions.longPageStyle = value as LongPageStyle,
-			{
-				[longPageLabels.style.mobile]: LongPageStyle.Mobile,
-				[longPageLabels.style.desktop]: LongPageStyle.Desktop,
-			},
-			longPageLabels.style.description,
-		);
-		// the style only applies to the long page output
-		const updateStyleVisibility = () =>
-		{
-			styleSetting.settingEl.style.display =
-				Settings.exportOptions.outputMode == ExportOutputMode.LongPage ? "" : "none";
-		};
-		updateStyleVisibility();
 
 		const compressionLabels = lang.imageCompression;
 		createDropdown(

@@ -9,10 +9,3 @@ export enum ExportOutputMode
 	LongPage = "long-page",
 	Site = "site",
 }
-
-/** Presentation of a long page export. */
-export enum LongPageStyle
-{
-	Mobile = "mobile",
-	Desktop = "desktop",
-}
