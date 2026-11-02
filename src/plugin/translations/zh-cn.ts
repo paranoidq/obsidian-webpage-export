@@ -81,6 +81,13 @@ export const language: i18n =
 			description: "打印时改用浏览器能够嵌入的字体，PDF 里的文字才能正常选中、复制和搜索。打印出的字体会与网页略有不同。",
 		},
 		longPage: {
+			pdf: {
+				title: "同时导出 PDF",
+				description: "在时间戳文件夹内用 html/ 和 pdf/ 分别保存 HTML 和同名 PDF；PDF 包含入口层级的可点击目录和阅读器书签（仅桌面版）。",
+				references: "引用资料",
+				progress: "正在生成 PDF",
+				failed: "PDF 导出失败，HTML 已保存。",
+			},
 			toc: "目录",
 			backToToc: "返回目录",
 			close: "收起目录",
@@ -105,6 +112,7 @@ export const language: i18n =
 			description: "关闭后不按入口结构拆分，也不生成侧边栏目录树（仅本次导出）。",
 		},
 		exportButton: "导出",
+		timestampFolderDescription: "每次导出新建时间戳文件夹（YYYY-MM-DD_HH-mm-ss-SSS）；同时导出 PDF 时，HTML 及附件放入 html/，PDF 放入 pdf/。",
 		filePicker:
 		{
 			title: "选择导出库中的所有文件",
@@ -304,6 +312,13 @@ export const language: i18n =
 			description: "打印时改用浏览器能够嵌入的字体，PDF 里的文字才能正常选中、复制和搜索。打印出的字体会与网页略有不同。",
 		},
 		longPage: {
+			pdf: {
+				title: "同时导出 PDF",
+				description: "在时间戳文件夹内用 html/ 和 pdf/ 分别保存 HTML 和同名 PDF；PDF 包含入口层级的可点击目录和阅读器书签（仅桌面版）。",
+				references: "引用资料",
+				progress: "正在生成 PDF",
+				failed: "PDF 导出失败，HTML 已保存。",
+			},
 			toc: "目录",
 			backToToc: "返回目录",
 			close: "收起目录",

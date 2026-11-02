@@ -79,6 +79,13 @@ export const language: i18n =
 			description: "Print with fonts the browser can embed, so text in the PDF stays selectable, copyable and searchable. Printed pages use a slightly different typeface than the web page.",
 		},
 		longPage: {
+			pdf: {
+				title: "Esporta anche PDF",
+				description: "Salva HTML e PDF omonimi nelle sottocartelle html/ e pdf/, con indice cliccabile e segnalibri della gerarchia iniziale (solo desktop).",
+				references: "Materiale di riferimento",
+				progress: "Generazione PDF",
+				failed: "Esportazione PDF non riuscita; HTML salvato.",
+			},
 			toc: "Contents",
 			backToToc: "Back to contents",
 			close: "Chiudi indice",
@@ -103,6 +110,7 @@ export const language: i18n =
 			description: "Se disattivato, la voce non viene suddivisa per struttura e non viene generata la directory tree nella barra laterale (solo questa esportazione).",
 		},
 		exportButton: "Esporta",
+		timestampFolderDescription: "Ogni esportazione crea una cartella con data e ora (YYYY-MM-DD_HH-mm-ss-SSS). Esportando anche PDF, HTML e allegati vanno in html/ e i PDF in pdf/.",
 		filePicker: {
 			title: "Seleziona tutti i file nel vault esportato",
 			selectAll: "Seleziona tutto",
@@ -298,6 +306,13 @@ export const language: i18n =
 			description: "Print with fonts the browser can embed, so text in the PDF stays selectable, copyable and searchable. Printed pages use a slightly different typeface than the web page.",
 		},
 		longPage: {
+			pdf: {
+				title: "Esporta anche PDF",
+				description: "Salva HTML e PDF omonimi nelle sottocartelle html/ e pdf/, con indice cliccabile e segnalibri della gerarchia iniziale (solo desktop).",
+				references: "Materiale di riferimento",
+				progress: "Generazione PDF",
+				failed: "Esportazione PDF non riuscita; HTML salvato.",
+			},
 			toc: "Contents",
 			backToToc: "Back to contents",
 			close: "Chiudi indice",

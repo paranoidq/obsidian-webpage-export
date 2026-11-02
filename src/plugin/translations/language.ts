@@ -86,6 +86,13 @@ export interface i18n
 			description: string;
 		};
 		longPage: {
+			pdf: {
+				title: string;
+				description: string;
+				references: string;
+				progress: string;
+				failed: string;
+			};
 			toc: string;
 			backToToc: string;
 			close: string;
@@ -110,6 +117,7 @@ export interface i18n
 			description: string;
 		};
 		exportButton: string;
+		timestampFolderDescription: string;
 		filePicker: 
 		{
 			title: string;
@@ -309,6 +317,13 @@ export interface i18n
 			description: string;
 		},
 		longPage: {
+			pdf: {
+				title: string;
+				description: string;
+				references: string;
+				progress: string;
+				failed: string;
+			};
 			toc: string;
 			backToToc: string;
 			close: string;

@@ -81,6 +81,13 @@ export const language: i18n =
 			description: "Print with fonts the browser can embed, so text in the PDF stays selectable, copyable and searchable. Printed pages use a slightly different typeface than the web page.",
 		},
 		longPage: {
+			pdf: {
+				title: "Exportar PDF também",
+				description: "Salva HTML e PDFs com o mesmo nome nas subpastas html/ e pdf/, com sumário clicável e marcadores da hierarquia de entrada (apenas desktop).",
+				references: "Material de referência",
+				progress: "Gerando PDF",
+				failed: "Falha ao exportar PDF; o HTML foi salvo.",
+			},
 			toc: "Contents",
 			backToToc: "Back to contents",
 			close: "Fechar índice",
@@ -105,6 +112,7 @@ export const language: i18n =
 			description: "Quando desativado, não divide a entrada por estrutura e não gera a árvore de arquivos da barra lateral (somente nesta exportação).",
 		},
 		exportButton: "Exportar",
+		timestampFolderDescription: "Cada exportação cria uma pasta com data e hora (YYYY-MM-DD_HH-mm-ss-SSS). Ao exportar PDF também, HTML e anexos ficam em html/ e PDFs em pdf/.",
 		filePicker: 
 		{
 			title: "Selecionar todos os arquivos no cofre exportado",
@@ -304,6 +312,13 @@ export const language: i18n =
 			description: "Print with fonts the browser can embed, so text in the PDF stays selectable, copyable and searchable. Printed pages use a slightly different typeface than the web page.",
 		},
 		longPage: {
+			pdf: {
+				title: "Exportar PDF também",
+				description: "Salva HTML e PDFs com o mesmo nome nas subpastas html/ e pdf/, com sumário clicável e marcadores da hierarquia de entrada (apenas desktop).",
+				references: "Material de referência",
+				progress: "Gerando PDF",
+				failed: "Falha ao exportar PDF; o HTML foi salvo.",
+			},
 			toc: "Contents",
 			backToToc: "Back to contents",
 			close: "Fechar índice",

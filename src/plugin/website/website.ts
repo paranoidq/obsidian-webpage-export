@@ -1,7 +1,7 @@
 import { Attachment } from "src/plugin/utils/downloadable";
 import { FileTree, FileTreeItem } from "src/plugin/features/file-tree";
 import { CascadeContentTree } from "src/plugin/features/cascade-content-tree";
-import {  TAbstractFile, TFile, TFolder } from "obsidian";
+import { Notice, TAbstractFile, TFile, TFolder } from "obsidian";
 import {  Settings } from "src/plugin/settings/settings";
 import { Path } from "src/plugin/utils/path";
 import { ExportLog, MarkdownRendererAPI } from "src/plugin/render-api/render-api";
@@ -21,6 +21,9 @@ import { DEFAULT_MAX_COMBINED_HTML_BYTES, enforceHtmlSizeBudget } from "src/plug
 import { encodeMetadataPayload } from "src/plugin/utils/metadata-codec";
 import { buildLongPage, LongPageNavigationNode } from "./long-page";
 import { ExportOutputMode } from "./pipeline-options";
+import { pathToFileURL } from "url";
+import { buildPdfPrintView } from "../pdf-export/pdf-print-view";
+import { exportLongPagePdf } from "../pdf-export/pdf-export";
 import { i18n } from "src/plugin/translations/language";
 
 const cascadeResourceFolderName = "attachments";
@@ -881,7 +884,7 @@ window.__MEDIA_HYDRATE_PROMISE=window.__hydrateInlineMedia(document);
 		return result.html;
 	}
 
-	public async saveAsCombinedHTML(): Promise<Path>
+	public async saveAsCombinedHTML(pdfDestination: Path = this.destination): Promise<Path>
 	{
 		const html = this.exportOptions.outputMode == ExportOutputMode.Site
 			? await this.getCombinedHTML()
@@ -901,7 +904,29 @@ window.__MEDIA_HYDRATE_PROMISE=window.__hydrateInlineMedia(document);
 			outputName = this.exportOptions.siteName + ".html";
 		}
 		const path = this.destination.joinString(outputName);
-		await path.write(budgeted.html);
+		if (!await path.write(budgeted.html)) throw new Error(`Unable to save HTML: ${path.path}`);
+		if (this.exportOptions.outputMode === ExportOutputMode.LongPage && this.exportOptions.exportPdf)
+		{
+			const labels = i18n.exportModal.longPage.pdf;
+			try
+			{
+				ExportLog.progress(0, labels.progress, path.fullName, "var(--color-cyan)");
+				const view = buildPdfPrintView(
+					budgeted.html,
+					{ toc: i18n.exportModal.longPage.toc, references: labels.references },
+					pathToFileURL(path.absoluted().pathname).href,
+				);
+				const pdfPath = pdfDestination.joinString(outputName).setExtension("pdf");
+				await exportLongPagePdf(view, pdfPath.absoluted().pathname);
+			}
+			catch (error)
+			{
+				// HTML is already complete. Report the PDF failure without discarding it
+				// or preventing the remaining H1 sections from exporting.
+				ExportLog.warning(error, labels.failed);
+				new Notice(`${labels.failed}\n${path.fullName}\n${error instanceof Error ? error.message : error}`, 12000);
+			}
+		}
 		return path;
 	}
 }

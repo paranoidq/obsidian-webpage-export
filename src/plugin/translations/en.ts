@@ -81,6 +81,13 @@ export const language: i18n =
 			description: "Print with fonts the browser can embed, so text in the PDF stays selectable, copyable and searchable. Printed pages use a slightly different typeface than the web page.",
 		},
 		longPage: {
+			pdf: {
+				title: "Also export PDF",
+				description: "Save HTML and same-name PDFs in separate html/ and pdf/ subfolders, with a clickable entry contents page and PDF bookmarks (desktop only).",
+				references: "Reference material",
+				progress: "Generating PDF",
+				failed: "PDF export failed; the HTML has been saved.",
+			},
 			toc: "Contents",
 			backToToc: "Back to contents",
 			close: "Close contents",
@@ -105,6 +112,7 @@ export const language: i18n =
 			description: "When off, the entry is not split by structure and no sidebar directory tree is generated (this export only).",
 		},
 		exportButton: "Export",
+		timestampFolderDescription: "Each export creates a timestamped folder (YYYY-MM-DD_HH-mm-ss-SSS). When exporting PDF too, HTML and attachments go in html/ and PDFs in pdf/.",
 		filePicker: 
 		{
 			title: "Select all files in exported vault",
@@ -305,6 +313,13 @@ export const language: i18n =
 			description: "Print with fonts the browser can embed, so text in the PDF stays selectable, copyable and searchable. Printed pages use a slightly different typeface than the web page.",
 		},
 		longPage: {
+			pdf: {
+				title: "Also export PDF",
+				description: "Save HTML and same-name PDFs in separate html/ and pdf/ subfolders, with a clickable entry contents page and PDF bookmarks (desktop only).",
+				references: "Reference material",
+				progress: "Generating PDF",
+				failed: "PDF export failed; the HTML has been saved.",
+			},
 			toc: "Contents",
 			backToToc: "Back to contents",
 			close: "Close contents",

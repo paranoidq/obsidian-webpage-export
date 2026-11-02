@@ -9,7 +9,8 @@
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"test:long-page": "node scripts/test-long-page-navigation.mjs",
 		"test:long-page-styles": "node scripts/test-long-page-styles.mjs",
-		"test:long-page-search": "node scripts/test-long-page-search.mjs"
+		"test:long-page-search": "node scripts/test-long-page-search.mjs",
+		"test:long-page-pdf": "node scripts/test-long-page-pdf.mjs"
 	},
 	"keywords": [],
 	"author": "Nathan George",
@@ -42,6 +43,7 @@
 		"jszip": "^3.10.1",
 		"mime": "^3.0.0",
 		"minisearch": "^7.1.0",
+		"pdf-lib": "^1.17.1",
 		"postcss": "^8.4.47",
 		"postcss-safe-parser": "^7.0.0",
 		"rss": "^1.2.2",

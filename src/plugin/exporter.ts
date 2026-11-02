@@ -8,6 +8,8 @@ import { ExportInfo, ExportModal } from "src/plugin/settings/export-modal";
 import { CascadeExportContext, CascadeExportResolver } from "./cascade-export-resolver";
 import { H1Section, splitMarkdownByH1 } from "./utils/h1-split";
 import { Attachment } from "./utils/downloadable";
+import { createTimestampedExportDirectory } from "./utils/export-directory";
+import { ExportOutputMode } from "./website/pipeline-options";
 import {
 	exportWordTemplatesAfterHtml,
 	resolveCombinedHtmlPath,
@@ -16,6 +18,31 @@ import {
 
 export class HTMLExporter
 {
+	/** Keep HTML and its relative resources together when also producing PDFs. */
+	private static async createWebsite(destination: Path, saveFiles: boolean = true): Promise<Website>
+	{
+		const options = Settings.exportOptions;
+		const htmlDestination = saveFiles && options.outputMode === ExportOutputMode.LongPage && options.exportPdf
+			? destination.joinString("html")
+			: destination;
+		if (!await htmlDestination.createDirectory()) throw new Error(`Unable to create HTML folder: ${htmlDestination.path}`);
+		return new Website(htmlDestination);
+	}
+
+	private static async createExportDestination(parent: Path): Promise<Path | undefined>
+	{
+		try
+		{
+			return new Path(await createTimestampedExportDirectory(parent.absoluted().pathname));
+		}
+		catch (error)
+		{
+			new Notice("❌ Export Failed: " + error, 5000);
+			ExportLog.error(error, "Unable to create export folder", true);
+			return undefined;
+		}
+	}
+
 	static async updateSettings(usePreviousSettings: boolean = false, overrideFiles: TFile[] | undefined = undefined, overrideExportPath: Path | undefined = undefined, lockPickedFiles: boolean = false, cascadeOptions: boolean = false): Promise<ExportInfo | undefined>
 	{
 		if (!usePreviousSettings) 
@@ -49,7 +76,8 @@ export class HTMLExporter
 		if ((!info && !usePreviousSettings) || (info && info.canceled)) return;
 
 		const files = info?.pickedFiles ?? overrideFiles ?? Settings.getFilesToExport();
-		const exportPath = overrideExportPath ?? info?.exportPath ?? new Path(Settings.exportOptions.exportPath);
+		const exportPath = await this.createExportDestination(overrideExportPath ?? info?.exportPath ?? new Path(Settings.exportOptions.exportPath));
+		if (!exportPath) return;
 
 		const website = await HTMLExporter.exportFiles(files, exportPath, true, Settings.deleteOldFiles);
 
@@ -64,7 +92,8 @@ export class HTMLExporter
 		const info = await this.updateSettings(usePreviousSettings, [entryFile], overrideExportPath, true, true);
 		if ((!info && !usePreviousSettings) || (info && info.canceled)) return;
 
-		const exportPath = overrideExportPath ?? info?.exportPath ?? new Path(Settings.exportOptions.exportPath);
+		const exportPath = await this.createExportDestination(overrideExportPath ?? info?.exportPath ?? new Path(Settings.exportOptions.exportPath));
+		if (!exportPath) return;
 		const exportRoot = new Path(entryFile.path).parent?.path ?? "";
 		const parseEntryAsDirectory = info?.parseEntryAsDirectory ?? true;
 
@@ -138,7 +167,8 @@ export class HTMLExporter
 
 				Settings.exportOptions.filesToExport = cascadeContext.pageFiles.map((file) => file.path);
 
-				const website = await (await new Website(destination).load(
+				const site = await this.createWebsite(destination);
+				const website = await (await site.load(
 					cascadeContext.pageFiles,
 					exportRoot,
 					cascadeContext
@@ -155,7 +185,7 @@ export class HTMLExporter
 					ExportLog.addToProgressCap(website.index.deletedFiles.length / 2);
 					for (const dFile of website.index.deletedFiles)
 					{
-						const path = new Path(dFile, destination.path);
+						const path = new Path(dFile, website.destination.path);
 
 						if (path.extension == "woff" || path.extension == "woff2" || path.extension == "ttf" || path.extension == "otf")
 						{
@@ -167,11 +197,11 @@ export class HTMLExporter
 						ExportLog.progress(0.5, "Deleting Old Files", "Deleting: " + path.path, "var(--color-red)");
 					}
 
-					await Path.removeEmptyDirectories(destination.path);
+					await Path.removeEmptyDirectories(website.destination.path);
 					deleteOld = false;
 				}
 
-				const htmlPath = await website.saveAsCombinedHTML();
+				const htmlPath = await website.saveAsCombinedHTML(destination.joinString("pdf"));
 
 				if (section.wordAttachmentId)
 				{
@@ -217,7 +247,8 @@ export class HTMLExporter
 		Settings.exportOptions.filesToExport = files.map((file) => file.path);
 		try
 		{
-			website = await (await new Website(destination).load(files, exportRoot, cascadeContext)).build();
+			const site = await this.createWebsite(destination, saveFiles);
+			website = await (await site.load(files, exportRoot, cascadeContext)).build();
 
 			if (!website)
 			{
@@ -231,7 +262,7 @@ export class HTMLExporter
 				ExportLog.addToProgressCap(website.index.deletedFiles.length / 2);
 				for (const dFile of website.index.deletedFiles)
 				{
-					const path = new Path(dFile, destination.path);
+					const path = new Path(dFile, website.destination.path);
 					
 					// don't delete font files
 					// this is a hacky way to prevent it from deleting the matjax and other font files used in only certain files
@@ -246,12 +277,12 @@ export class HTMLExporter
 					i++;
 				};
 
-				await Path.removeEmptyDirectories(destination.path);
+				await Path.removeEmptyDirectories(website.destination.path);
 			}
 			
 			if (saveFiles) 
 			{
-				await website.saveAsCombinedHTML();
+				await website.saveAsCombinedHTML(destination.joinString("pdf"));
 				const resources = website.getCascadeResourceDownloads();
 				if (resources.length) await Utils.downloadAttachments(resources);
 			}
@@ -274,7 +305,9 @@ export class HTMLExporter
 	public static async exportVault(rootExportPath: Path, saveFiles: boolean, clearDirectory: boolean) : Promise<Website | undefined>
 	{
 		const files = app.vault.getFiles();
-		return await this.exportFiles(files, rootExportPath, saveFiles, clearDirectory);
+		const destination = saveFiles ? await this.createExportDestination(rootExportPath) : rootExportPath;
+		if (!destination) return;
+		return await this.exportFiles(files, destination, saveFiles, clearDirectory);
 	}
 
 	private static async maybeExportWordTemplates(
@@ -291,7 +324,7 @@ export class HTMLExporter
 			if (!attachments)
 			{
 				const htmlPath = htmlPathOverride
-					?? (website ? resolveCombinedHtmlPath(website, destination) : undefined);
+					?? (website ? resolveCombinedHtmlPath(website, website.destination) : undefined);
 				if (!htmlPath) return;
 				attachments = [{ key: "", htmlPath }];
 			}

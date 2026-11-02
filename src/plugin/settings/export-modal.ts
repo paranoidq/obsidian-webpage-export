@@ -7,7 +7,6 @@ import { Path } from 'src/plugin/utils/path';
 import { FileDialogs } from 'src/plugin/utils/file-dialogs';
 import { createFileInput, createToggle, createDropdown } from './settings-components';
 import { Website } from 'src/plugin/website/website';
-import { Index } from 'src/plugin/website';
 import { i18n } from '../translations/language';
 import { ImageCompressionLevel } from 'src/plugin/utils/image-compressor';
 import { DocumentFontSize, ExportOutputMode } from 'src/plugin/website/pipeline-options';
@@ -211,13 +210,21 @@ export class ExportModal extends Modal
 			contentEl,
 			longPageLabels.outputMode.title,
 			() => Settings.exportOptions.outputMode,
-			(value) => Settings.exportOptions.outputMode = value as ExportOutputMode,
+			(value) => { Settings.exportOptions.outputMode = value as ExportOutputMode; updatePdfVisibility(); },
 			{
 				[longPageLabels.outputMode.longPage]: ExportOutputMode.LongPage,
 				[longPageLabels.outputMode.site]: ExportOutputMode.Site,
 			},
 			longPageLabels.outputMode.description,
 		);
+
+		const pdfSetting = createToggle(contentEl, longPageLabels.pdf.title,
+			() => Settings.exportOptions.exportPdf,
+			(value) => Settings.exportOptions.exportPdf = value,
+			longPageLabels.pdf.description);
+		const updatePdfVisibility = () => pdfSetting.settingEl.style.display =
+			Settings.exportOptions.outputMode === ExportOutputMode.LongPage ? "" : "none";
+		updatePdfVisibility();
 
 		const compressionLabels = lang.imageCompression;
 		createDropdown(
@@ -280,39 +287,11 @@ export class ExportModal extends Modal
 
 		const onChangedValidate = (path: Path) => (!validatePath(path).valid) ? setExportDisabled(true) : setExportDisabled(false);
 
-		const onChanged = async (path: Path) =>
+		const onChanged = (path: Path) =>
 		{
 			onChangedValidate(path);
-			const valid = validatePath(path);
-			this.validPath = valid.valid;
-			if (!valid)
-			{
-				exportDescription.setText("");
-				return;
-			}
-
-			const website = new Website(path);
-			const index = new Index();
-			await index.load(website, website.exportOptions);
-
-			if (!index.oldWebsiteData)
-			{
-				exportDescription.setText(lang.currentSite.noSite);
-				return;
-			}
-
-			if (index.oldWebsiteData.pluginVersion != HTMLExportPlugin.pluginVersion)
-			{
-				exportDescription.setText(lang.currentSite.oldSite);
-				return;
-			}
-
-			const lastExportDate = new Date(index.oldWebsiteData.modifiedTime).toLocaleString();
-			const lastExportFiles = index.oldWebsiteData.allFiles?.length;
-			const lastExportName = index.oldWebsiteData.siteName;
-
-			exportDescription.setText(`${lang.currentSite.pathContainsSite}: "${lastExportName}"\n${lang.currentSite.fileCount}: ${lastExportFiles}\n${lang.currentSite.lastExported}: ${lastExportDate}`);
-			exportDescription.style.whiteSpace = "pre-wrap";
+			this.validPath = validatePath(path).valid;
+			exportDescription.setText(this.validPath ? lang.timestampFolderDescription : "");
 		}
 
 		const exportPathInput = createFileInput(contentEl, () => Settings.exportOptions.exportPath, (value) => Settings.exportOptions.exportPath = value,
@@ -338,8 +317,8 @@ export class ExportModal extends Modal
 			});
 		});
 
-		// add description of export at this path
-		const exportDescription = contentEl.createEl('div', { text: 'Loading site at path...', cls: 'setting-item-description'});
+		// The selected path is a parent; each export reserves its own folder.
+		const exportDescription = contentEl.createEl('div', { text: lang.timestampFolderDescription, cls: 'setting-item-description'});
 		exportDescription.style.marginBottom = "1em";
 		onChanged(new Path(exportPathInput.textInput.getValue()));
 

@@ -184,6 +184,9 @@ export class ExportPipelineOptions extends MarkdownRendererOptions
 	 */
 	outputMode: ExportOutputMode = ExportOutputMode.LongPage;
 
+	/** Save a same-name PDF alongside a long-page HTML export (desktop only). */
+	exportPdf: boolean = true;
+
 	/**
 	 * Warning threshold for the combined single-file HTML size in bytes.
 	 * Image compression is controlled by imageCompressionLevel; if the result

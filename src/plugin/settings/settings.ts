@@ -323,13 +323,21 @@ export class SettingsPage extends PluginSettingTab
 			section,
 			lang.longPage.outputMode.title,
 			() => Settings.exportOptions.outputMode,
-			(value) => Settings.exportOptions.outputMode = value as ExportOutputMode,
+			(value) => { Settings.exportOptions.outputMode = value as ExportOutputMode; updatePdfVisibility(); },
 			{
 				[lang.longPage.outputMode.longPage]: ExportOutputMode.LongPage,
 				[lang.longPage.outputMode.site]: ExportOutputMode.Site,
 			},
 			lang.longPage.outputMode.description,
 		);
+
+		const pdfSetting = createToggle(section, lang.longPage.pdf.title,
+			() => Settings.exportOptions.exportPdf,
+			(value) => Settings.exportOptions.exportPdf = value,
+			lang.longPage.pdf.description);
+		const updatePdfVisibility = () => pdfSetting.settingEl.style.display =
+			Settings.exportOptions.outputMode === ExportOutputMode.LongPage ? "" : "none";
+		updatePdfVisibility();
 
 		createDropdown(
 			section,

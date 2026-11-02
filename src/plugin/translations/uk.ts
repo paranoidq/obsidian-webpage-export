@@ -81,6 +81,13 @@ export const language: i18n =
 			description: "Print with fonts the browser can embed, so text in the PDF stays selectable, copyable and searchable. Printed pages use a slightly different typeface than the web page.",
 		},
 		longPage: {
+			pdf: {
+				title: "Також експортувати PDF",
+				description: "Зберігати HTML і однойменні PDF в окремих підпапках html/ і pdf/, з ієрархічним змістом і закладками PDF (лише настільна версія).",
+				references: "Довідкові матеріали",
+				progress: "Створення PDF",
+				failed: "Не вдалося експортувати PDF; HTML збережено.",
+			},
 			toc: "Contents",
 			backToToc: "Back to contents",
 			close: "Закрити зміст",
@@ -105,6 +112,7 @@ export const language: i18n =
 			description: "Якщо вимкнено, не розбиває вхід за структурою і не генерує дерево файлів у бічній панелі (лише для цього експорту).",
 		},
 		exportButton: "Експортувати",
+		timestampFolderDescription: "Кожен експорт створює папку з часовою позначкою (YYYY-MM-DD_HH-mm-ss-SSS). При одночасному експорті PDF, HTML і вкладення зберігаються в html/, а PDF — у pdf/.",
 		filePicker:
 		{
 			title: "Вибрати всі файли в експортованому сховищі",
@@ -303,6 +311,13 @@ export const language: i18n =
 			description: "Print with fonts the browser can embed, so text in the PDF stays selectable, copyable and searchable. Printed pages use a slightly different typeface than the web page.",
 		},
 		longPage: {
+			pdf: {
+				title: "Також експортувати PDF",
+				description: "Зберігати HTML і однойменні PDF в окремих підпапках html/ і pdf/, з ієрархічним змістом і закладками PDF (лише настільна версія).",
+				references: "Довідкові матеріали",
+				progress: "Створення PDF",
+				failed: "Не вдалося експортувати PDF; HTML збережено.",
+			},
 			toc: "Contents",
 			backToToc: "Back to contents",
 			close: "Закрити зміст",
